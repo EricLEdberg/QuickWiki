@@ -1,0 +1,49 @@
+<style>
+html {
+  font-family: sans-serif;
+}
+
+form {
+  width: 600px;
+  background: #eee;
+  padding: 10px;
+  border: 2px solid black;
+  font-weight: bold;
+}
+
+form li, div > p {
+  display: flex;
+  background: #eee;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  list-style-type: none;
+  border: 1px solid black;
+}
+
+form img {
+  height: 64px;
+  order: 1;
+}
+
+form p {
+  line-height: 32px;
+  padding-left: 5px;
+}
+
+form label, form button {
+  background-color: #7F9CCB;
+  padding: 5px 5px;
+  border-radius: 5px;
+  border: 1px ridge black;
+  display: inline-block;
+}
+
+form label:hover, form button:hover {
+  background-color: #2D5BA3;
+  color: white;
+}
+form label:active, form button:active {
+  background-color: #0D3F8F;
+  color: white;
+}
+</style>

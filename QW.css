@@ -1,0 +1,194 @@
+body {
+	font-family: veranda, helvetica, sans-serif; 
+	color:#565c5e;
+	font-size: 10pt;
+	line-height:1.35em; 
+	margin: 3px;
+}
+
+.footer {
+    position: absolute;
+    bottom: 0;
+}
+
+H1 {font-family: trebuchet MS,  sans-serif; font-weight: bold; font-size: 1.9em}
+H2 {font-family: trebuchet MSl, sans-serif; font-weight: bold; font-size: 1.6em}
+H3 {font-family: trebuchet MS,  sans-serif; font-weight: bold; font-size: 1.3em }
+H4 {font-family: trebuchet MS,  sans-serif; font-weight: bold; font-size: 1em }
+ul {
+	margin-left:  1.5em;
+	margin-top:    .2em;
+	margin-bottom: .8em;
+	padding-left:  .3em;
+}
+ol {
+	margin-left:  2.0em;
+	margin-top:    .2em;
+	margin-bottom: .8em;
+	padding-left:  .3em;
+}
+img {
+	margin: 0;
+}
+table {
+	/* border-collapse: collapse; */
+	border-spacing: 0;   /* not IE */
+}
+td {
+	/* vertical-align: top; */
+}
+
+/* --------------- used by clsHeader.asp & other headers--------------------- */
+img.CorpLogoImg {
+	width: 115px;
+	border: 0;
+}
+/* legacy RMS logo */
+img.AppLogoImg {
+	width: 55px;
+	border: 0;
+}
+td.CorpLogoImg {
+	width: 130px;
+	border: 0;
+	text-align: center;
+	vertical-align: middle;
+}
+
+/* legacy RMS logo */
+td.AppLogoImg {
+	width: 55px;
+	border: 0;
+}
+td.AppLogo {
+	/* background-color: #003366;*/
+	vertical-align: middle;
+	text-align: center;
+	width: 125px;
+}
+img.AppLogoImg {
+	width: 160px;
+	border: 0;
+}
+
+div.AppIconHeader {
+	padding-top: 20px;
+}
+
+div.AppTblHeader {
+	/* 
+	background-image: url('/APP/Images/AlcatelLucent_Header.gif'); 
+	background-size: 100%;
+	background-origin: content;
+	*/
+	padding: 0px;
+	margin: 0px;
+	/* height: 100; */
+	
+}
+table.AppTblHeader {
+	width: 100%;
+	/* height: 90px; */
+	padding: 0px;
+	margin: 0px;
+	spacing: 0px;
+	border-collapse: collapse;
+}
+td.CorpLogoImg {
+	width: 150px;
+}
+
+td.MinWidth {
+	width: 1%; 
+	white-space: nowrap;
+}
+
+/* ------------------------------------------------- */
+A, A:link, A:active {
+	color: #565c5e;
+	font-weight: 700;
+}
+A:visited {
+	color: #262c2e;
+	/* font-weight:bold; */
+	/* font-family: Verdana, Helvetica, sans-serif; */
+	/* font-size: 11px; */
+	/* font-size: 95%; */
+	/* text-decoration: underline; */
+}
+A:hover {
+	color: #0000FF;
+	/* text-decoration: underline; */
+}
+
+/* The 1.0em hack initializes inheritance in IE for the specified objects
+ * --> http://shapeshed.com/journal/css_font_size_not_inherited_in_ie_tables/ */
+table, thead, tbody, tr, td, th, select, option, input {
+	font-size:   1.0em;            /* fix documented above */
+	font-family: inherit;          /* not verified if it works yet */
+}
+
+.vtiny { font-size : .65em; }
+.tiny  { font-size : .80em; }
+.vs    { font-size : .90em; }
+.sm    { font-size : 1.0em;}
+.md    { font-size : 1.05em;}
+.lg    { font-size : 1.25em;}
+.xl    { font-size : 1.5em;}
+.title {
+	font-size : 1.5em;
+	color: Red;
+	font-weight: bold;
+}
+.info {
+	font-size : 1.5em;
+	color: Green;
+	font-weight: bold;
+}
+.comment {
+	font-size : .80em;
+	font-family : "Comic Sans MS";
+	color: Maroon;
+	font-style : italic;
+	text-decoration: none;
+}
+.code {
+	color: #000000;
+	font-family:"Courier New", Courier, mono;
+	font-size:.80em;
+	margin: 3px 0px 0px 0px;
+	background-color:#E5E5E5;
+}
+.SemiTransparent {
+	filter:alpha(opacity=25);
+	-moz-opacity:.25;
+	opacity:.25;
+}
+.readonly {
+	background-color: #F0F0F0;
+}
+.pre { 
+	font-family: sans-serif; 
+	font-family: monospace; 
+}
+.dbg {
+	font-size : .80em;
+	font-family : "Comic Sans MS";
+	color: Maroon;
+}
+.dbg2 {
+	font-size : .80em;
+	font-family : "Comic Sans MS";
+	color: Blue;
+}
+.menu-popup {
+  position: absolute;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  padding: 5px;
+}
+.button {
+	padding-left: 10px;
+	display: inline-block;
+}
+
