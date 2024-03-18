@@ -1,7 +1,7 @@
 <?php
 
 // --------------------------------------------
-// This class extends clsProfile and overloads 2 functions that encrypt/decrypt data flows
+// Extend clsProfile and overload 2 functions that encrypt/decrypt data flows
 // --------------------------------------------
 class QWProfile extends clsProfile {
 	public function outgoingdata ($xStr) {
@@ -103,6 +103,7 @@ class clsProfile {
 	// --------------------------------------------
     // --------------------------------------------
     function isLoggedOn($aOptions){
+		global $objENC;
 		if (isset($_SESSION['QWUser'])) {
 			$this->config['User'] = json_decode($this->incommingData($_SESSION['QWUser']), true);
 		}

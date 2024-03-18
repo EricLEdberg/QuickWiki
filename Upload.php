@@ -18,8 +18,8 @@ $config['allowedTypes'] = array('image/png', 'image/jpeg', 'image/jpg', 'image/g
 // -----------------------------------------------------
 // -----------------------------------------------------
 require_once('clsEncryption.php');
-$config['key1']           = $QWENV['KEY1'];
-$config['key2']           = $QWENV['KEY2'];
+$config['KEY1']           = $QWENV['KEY1'];
+$config['KEY2']           = $QWENV['KEY2'];
 $objENC                   = new clsEncryption($config);
 
 // TODO:

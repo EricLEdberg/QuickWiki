@@ -1,39 +1,37 @@
 <?php
 
 class clsEncryption {
-	public  $config;
-	public  $Version                   = ".0.3";
-	public  $MyDebug                   = false;
-	public  $error                     = null;
-    
-    private $key16;
-    private $key32;
-    private $key64;
+	public  $Config       = Array();
+	public  $Version      = ".0.3";
+	public  $MyDebug      = false;
+	public  $error        = null;
     
 	// ----------------------------------------------------------
-	// Constructor - automatically called on class initialization
 	// ----------------------------------------------------------
-	public function __construct($aConfig) {
-        $this->config = $aConfig;
+	public function __construct($xConfig) {
+        $this->Config = $xConfig;
 
         if(!extension_loaded('openssl')) {
-			throw new Exception('clsEncryption requires openssl PHP extension, Get Help.');
+			throw new Exception('clsEncryption requires PHP openssl extension, Get Help.');
 		}
 
-        // Dynamically generate keys if they are not provided
-        // Application would then need to store these keys across multiple program instanciations (in it's own encrypted _SESSION variable?)
+        // See README.MD which references using KEY16 and KEY32 when installing QW application (obtained when setting $this->Mydebug=true)
+        // Dynamically generate base64-encoded keys at runtime
+        // Application would store and manage keys themselves across multiple program instanciations
         // legacy openssl_random_pseudo_bytes() may not return cryptographically secure key on older servers
-        if ( ($aConfig['key16'] === null) || (strcmp($aConfig['key16'],"")==0) ) $aConfig['key16']  = bin2hex(random_bytes(16));
-        if ( ($aConfig['key32'] === null) || (strcmp($aConfig['key32'],"")==0) ) $aConfig['key32']  = bin2hex(random_bytes(32));
-        if ( ($aConfig['key64'] === null) || (strcmp($aConfig['key64'],"")==0) ) $aConfig['key64']  = bin2hex(random_bytes(64));      
-        
+        if (!isset($this->Config['KEY16'])) $this->Config['KEY16'] = base64_encode(bin2hex(random_bytes(16)));
+        if (!isset($this->Config['KEY32'])) $this->Config['KEY32'] = base64_encode(bin2hex(random_bytes(32)));
+        if (!isset($this->Config['KEY64'])) $this->Config['KEY64'] = base64_encode(bin2hex(random_bytes(64)));
+    
 	}
 
     // ----------------------------------------------------------
 	// ----------------------------------------------------------
 	public function __destruct() {
-		// if ($this->MyDebug) print "<li>__destruct(): doing</li>";
-		
+        if ($this->MyDebug) {
+            echo "<h4>clsEncryption()</h4>";
+            $this-dump($this->Config);
+        }
 	}
 
     function dump($var) {
@@ -46,53 +44,42 @@ class clsEncryption {
 	// see:  https://www.php.net/manual/en/function.openssl-encrypt.php
     // ----------------------------------------------------------
 	function encryptData($data) {
+        
         if (is_null($data))        return false;
 		if (!is_string($data))     return false;
 		if ((strcmp($data,"")==0)) return false;
 		
-        // echo "<li>encryptData(): $data</li>";
-        $first_key            = base64_decode($this->config['key1']);
-        $second_key           = base64_decode($this->config['key2']);          
-         
+        $first_key            = base64_decode($this->Config['KEY1']);
+        $second_key           = base64_decode($this->Config['KEY2']);                 
         $method               = "aes-256-cbc";    
         $iv_length            = openssl_cipher_iv_length($method);
-        
-        // openssl_random_pseudo_bytes() may not return cryptographically secure keys in older servers
-        // $iv                   = openssl_random_pseudo_bytes($iv_length);
         $iv                   = random_bytes($iv_length);
-
         $first_encrypted      = openssl_encrypt($data,$method,$first_key, OPENSSL_RAW_DATA ,$iv);    
         $second_encrypted     = hash_hmac('sha3-512', $first_encrypted, $second_key, TRUE);
-                    
         $output               = base64_encode($iv.$second_encrypted.$first_encrypted);
         return $output;        
     }
 
     // ------------------------------------------------------------------
-    // ?:  is Data always encrypted in base64? Guess so when using this class...
 	// ------------------------------------------------------------------
 	function decryptData($input) {
 
-        $first_key            = base64_decode($this->config['key1']);
-        $second_key           = base64_decode($this->config['key2']);          
+        $first_key            = base64_decode($this->Config['KEY1']);
+        $second_key           = base64_decode($this->Config['KEY2']);
         $mix                  = base64_decode($input);        
         $method               = "aes-256-cbc";
-        $iv_length            = openssl_cipher_iv_length($method);
-                    
+        $iv_length            = openssl_cipher_iv_length($method);            
         $iv                   = substr($mix,0,$iv_length);
         $second_encrypted     = substr($mix,$iv_length,64);
         $first_encrypted      = substr($mix,$iv_length+64);
-        
-        $data                 = openssl_decrypt($first_encrypted,$method,$first_key,OPENSSL_RAW_DATA,$iv);
+        $data                 = openssl_decrypt($first_encrypted,$method,$first_key,OPENSSL_RAW_DATA,$iv);      
         $second_encrypted_new = hash_hmac('sha3-512', $first_encrypted, $second_key, TRUE);
-            
         if (hash_equals($second_encrypted,$second_encrypted_new)) return $data;
-
         return false;
     }
 
     // ------------------------------------------------------------------
-	// Suitable for inclusion in URL
+
 	// ------------------------------------------------------------------
 	public function EncryptDataUrl($xString) {
         if (is_null($xString) || (strcmp($xString,"")==0) ) return false;
@@ -100,6 +87,7 @@ class clsEncryption {
 	}
 
     // ---------------------------------------------------------------------
+    // Parse a string in comma-seperated name/value pairs into an array
 	// ---------------------------------------------------------------------
 	function strToNameValueArray($inputString, $split1, $split2) {
         $result = array();
@@ -137,7 +125,7 @@ class clsEncryption {
     }
 
     // ---------------------------------------------------------------------
-	// Testing RSA public/private key generation
+	// Test RSA public/private key generation
     // ERROR:  does not work unless PHP is configured with additional openssl cnf
     // See:   https://medium.com/@viniciusamparo/a-simple-guide-to-client-side-encryption-and-decryption-using-javascript-jsencrypt-and-php-20c2f179b6e5
     // ---------------------------------------------------------------------
@@ -199,7 +187,8 @@ class clsEncryption {
         $this->dump($resultArray);
 
 
-        // Set the encryption key in a cookie (make sure to set secure and httpOnly flags)
+        // example how to set the encryption key in a cookie (make sure to set secure and httpOnly flags)
+        // definately do not want to do this as it's extremely insecure
         // setcookie("key", $key, 0, '/', '', true, true);
 
     }
