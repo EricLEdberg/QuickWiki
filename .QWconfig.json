@@ -1,0 +1,30 @@
+{
+    "config": {
+       "MyDebug": true,
+       "SearchEnabled": true,
+       "UploadEnabled": true,
+       "FileIOAction": null,
+       "ENCRYPTION": true,
+       "CUSTOMBODY": "style=\"background: #e6fffa;\""
+    },
+    "server": {
+        "susiepc": {
+            "EdbergNet": {
+                "QWNAME": "EdbergNet Qwiki",
+                "qwURL": "https://susiepc/QWiki/QW",
+                "QWABSTRACT": "Edberg Family Technical Information",
+                "rootURL": "https://susiepc/Qwiki/EdbergQwiki",
+                "rootPath": "P:\\Qwiki\\EdbergQwiki",
+                "CUSTOMBODY": "style=\"background: #e6fffa;\""
+            },
+            "BirdNest": {
+                "QWNAME": "BirdNest Qwiki",
+                "qwURL": "https://susiepc/QWiki/QW",
+                "QWABSTRACT": "Bird Family Technical Information",
+                "rootURL": "https://susiepc/Qwiki/BirdNestQwiki",
+                "rootPath": "P:\\Qwiki\\BirdNestQwiki",
+                "CUSTOMBODY": "style=\"background: #efefef;\""
+            }
+        }
+    }
+}

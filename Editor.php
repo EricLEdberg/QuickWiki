@@ -1,8 +1,13 @@
 <?php
+// --------------------------------------
+// ISSUE:  user executes QW.php to present editor form BUT
+//         submits directly to Editor.php
+//         GAK:  submit to QW.php
+// --------------------------------------
 
-$ThisProgram           = "/Qwiki/QW/Editor.php";
-$SubmitAction          = $ThisProgram . "?EditorSubmitForm=TRUE";
-$MyDebug               = FALSE;
+$ThisProgram           = "/Qwiki/QW/Editor.php";                     // TODO:  this should be derived, not hard coded.
+$SubmitAction          = $ThisProgram;
+$EditorText            = null;
 
 // --------------------------------------------------------------------
 // --------------------------------------------------------------------
@@ -12,29 +17,27 @@ if (is_object($objQW)) {
 	$EditorFile                = $_REQUEST["EditorFile"];
 }
 
-$EditorMode                = $_REQUEST["EditorMode"];           // Values: Insert, Append, Replace
-$EditorText                = $_REQUEST["EditorText"];           // Typically passed in editor form
-$EditorSubmitForm          = $_REQUEST["EditorSubmitForm"];     // non-empty when submitting information
-$EditorHeight              = $_REQUEST["EditorHeight"];
-$EditorWidth               = $_REQUEST["EditorWidth"];
-
-if ($EditorHeight          = "") $EditorHeight = 800;
-if ($EditorWidth           = "") $EditorWidth  = 1000;
+// If EditorText exists as a _REQUEST, then user submitted editor form
+// EditorFile should be an encrypted QW "Option"...
+$bEditorSubmitted = false;
+if (isset($_REQUEST["EditorText"])){
+	$EditorText       = $_REQUEST["EditorText"];
+	$EditorFile       = $_REQUEST['EditorFile'];
+	$bEditorSubmitted = true;
+} else {
+	$EditorText = "<em>Input updated text here</em>";
+}
 
 // ----------------------------------------------------------
-// Update file being edited
+// Editor form submitted, update file contents and reload parent page with updated content
 // ----------------------------------------------------------
-if (isset($_REQUEST["EditorSubmitForm"])) {
-	if (!isset($_REQUEST['EditorText'])) {
-		echo "ERROR:  EditorText was not provided, Get Help";
-		exit;
-	}
-	$EditorText = $_REQUEST['EditorText'];
-	$EditorFile = $_REQUEST['EditorFile'];
+if ($bEditorSubmitted) {
 
-	// echo "<li>Updating File:  $EditorFile</li>";
+	// TODO:  validate EditorText is valid?
+	// This is troubling as QW allows .PHP or other types of code...
+
 	if (!file_put_contents($EditorFile, $EditorText)) {
-		echo "ERROR:  Updating QW contents failed";
+		echo "ERROR:  Updating Editor contents failed, Get Help if this occurs again.";
 		exit;
 	}
 
@@ -52,38 +55,27 @@ if (isset($_REQUEST["EditorSubmitForm"])) {
 }
 
 // ----------------------------------------------------------
+// Rename content files from ASP to PHP (should not be coded in this editor....)
+// Hope they don't contain any ASP VB content....
 // ----------------------------------------------------------
-$EditorText = "<em>Input updated text here</em>";
-
-if ( strcmp($EditorFile,"")!=0 && strcmp($EditorSubmitForm,"")==0 ) {
-	if ($MyDebug) echo "<li>EditorFile(" . $EditorFile . ")</li>";
-	
-	// rename files from .asp to .php (and hope they don't contain any vb code...)
-	$xOldFileName = str_replace(".php",".asp",$EditorFile);
-	if (file_exists($xOldFileName)) {
-		if (!rename($xOldFileName,$EditorFile)) {
-			echo "ERROR: failed to rename file from .asp to .php, Get Help";
-			exit;
-		}
-	}
-
-	if (file_exists($EditorFile)) {
-		$EditorText = file_get_contents($EditorFile);
+$xOldFileName = str_replace(".php",".asp",$EditorFile);
+if (file_exists($xOldFileName)) {
+	if (!rename($xOldFileName,$EditorFile)) {
+		echo "ERROR: failed to rename EditorFile from .asp to .php, Get Help";
+		exit;
 	}
 }
 
 // ----------------------------------------------------------
-// Update file
+// Read file contents
+// else:  it's a new file being created
 // ----------------------------------------------------------
-Function SubmitEditorForm() {
-    $EditorFile = $_REQUEST["EditorFile"];
-	$EditorText = $_REQUEST["EditorText"];
-	$bRet = FILEIO_WriteFile($xMode, $EditorFile, $EditorText);
-	exit;
-};
-
+if (file_exists($EditorFile)) {
+	$EditorText = file_get_contents($EditorFile);
+}
 
 // ------------------------------------------------------------
+// Display EDITOR FORM
 // ------------------------------------------------------------
 echo "<script src=\"ckeditor_4510/ckeditor.js\"></script>";
 
@@ -91,7 +83,6 @@ echo "<script src=\"ckeditor_4510/ckeditor.js\"></script>";
 // ------------------------------------------------------------
 echo "<form name=Editor method=POST action='" . $SubmitAction . "'>";
 echo "<input type=hidden name='EditorSubmitForm'      value=TRUE>";
-echo "<input type=hidden name='EditorMode'            value='" . $EditorMode . "'>";
 echo "<input type=hidden name='EditorFile'            value='" . $EditorFile . "'>";
 
 // ------------------------------------------------------------

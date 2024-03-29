@@ -160,7 +160,6 @@ class clsProfile {
 		$xKey = "PROFILE_filePath=" . $this->config['Options']['PROFILE_filePath'];
 
 		echo "<h2>Qwiki User Profile</h2>";
-
 		if ($this->isLoggedOn(null)) {
 			echo "<button class='button' id=profileLogout onclick='GoToURL(\"" . $this->config['Auth']['logoutURL'] . "\",\"_self\"); return false;'>Qwiki Logout</button>";
 		} else {
@@ -175,8 +174,6 @@ class clsProfile {
 		
 		echo "<br><table>";
 		echo "<tr><td colspan=20>";
-			
-		// echo "<B>Selected File:</B><br>&nbsp;&nbsp;&nbsp;<span class=title><B>" . basename($this->config['Options']['PROFILE_filePath']) . "</B></span>";
 	}    
 
 	// --------------------------------------------
@@ -201,8 +198,6 @@ class clsProfile {
 	}
     
     public function showCurrentUser($aOptions) {
-        // if ($this->MyDebug) $this->dump($this->config['User']);
-
         echo '<div id="currentUserInfo" class="comment" style="display:inline-block;"><table border=1 cellpadding=5 cellspacing=5>' .
         '<tr><td align=right>Email:</td>' . '<td align=left><b>' . $this->config['User']['email'] . '</b></td></tr>' . 
         '<tr><td align=right>Username:</td>' . '<td align=left><b>' . $this->config['User']['Username'] . '</b></td></tr>' . 

@@ -42,7 +42,7 @@ class clsFileIO {
 
 	// --------------------------------------------
     // initialize parameters about file currently being processed
-	// currently assume class only can process 1 file at a time (which is not a good assumption)
+	// currently assume class can only process 1 file at a time (which is not a good assumption)
 	// return false if file does not exist
 	// --------------------------------------------
     public function setFilePath(string $xFilePath) {
@@ -74,27 +74,128 @@ class clsFileIO {
 	// --------------------------------------------
     // verify if xItem (file or folder) resides in or under xRootFolder
 	// Kinda CHROOT like...
+	// Note that there are all sorts of issues when using realpath()... See manual page.
 	// --------------------------------------------
-	function isItemInRootFolder($xRootFolder, $xItem) {
+	function isItemInRootFolder($xRootFolder, $xItem, $xCheckExistance = true) {
 		
-		// Normalize to absolute paths
-		$xRootFolder = realpath($xRootFolder);
-		$xItem       = realpath($xItem);
-	
+		if ($xCheckExistance) {
+			// Normalize to absolute paths
+			$xRootFolder = realpath($xRootFolder);
+			$xItem       = realpath($xItem);
+		}
+		
 		// Make sure both paths are valid
 		if ($xRootFolder === false || $xItem === false) {
 			return false;
-		}
-	
+		}	
+
 		// Check if the file path is equal to or a subdirectory of the root directory
 		// return strpos($xItem, $xRootFolder) === 0 && $xItem !== $xRootFolder;
 		return strpos($xItem, $xRootFolder) === 0;
 	}
+	
 
+	// -----------------------------------------------------------------------------
+	// https://stackoverflow.com/questions/2021624/string-sanitizer-for-filename
+	// Removes illegl characters
+	// Can then compare origiinal to filtered to determine differences and error accordingly
+	// -----------------------------------------------------------------------------
+	function filterFilePath($xFilePath) {
+		
+		$xFilePath = preg_replace(
+			'~
+			[<>:"/\\\|?*]|           # file system reserved https://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words
+			[\x00-\x1F]|             # control characters http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx
+			[\x7F\xA0\xAD]|          # non-printing characters DEL, NO-BREAK SPACE, SOFT HYPHEN
+			[#\[\]@!$&\'()+,;=]|     # URI reserved https://www.rfc-editor.org/rfc/rfc3986#section-2.2
+			[{}^\~`]                 # URL unsafe characters https://www.ietf.org/rfc/rfc1738.txt
+			~x',
+			'-', $xFilePath);
+		
+		// avoids ".", ".." or ".hiddenFiles"
+		$xFilePath = ltrim($xFilePath, '.-');
+		
+		// maximize filename length to 255 bytes http://serverfault.com/a/9548/44086
+		$ext      = pathinfo($filename, PATHINFO_EXTENSION);
+		$xFilePath = mb_strcut(pathinfo($xFilePath, PATHINFO_FILENAME), 0, 255 - ($ext ? strlen($ext) + 1 : 0), mb_detect_encoding($xFilePath)) . ($ext ? '.' . $ext : '');
+		
+		return $xFilePath;
+	}
+
+	// -----------------------------------------------------------------------------
+	// Validate that file does not contain illegal characters
+	// Must support both Linux and Windows naming conventions
+	// Return true when an illegal character is found
+	// ISSUE:  this check only works for the name of a folder, not the entire path
+	//         since it prevents slash characters in file names
+	//         need to upgrade function to check for either the name or path of a folder in addition to file names
+	// -----------------------------------------------------------------------------
+	public function containsIllegalCharacters ($xItem, &$err) {
+		
+		// Check for null or empty path
+		if (empty($xItem)) {
+			$err = "cannot be empty";
+			return true;
+		}
+
+		// Check for null byte character
+		if (strpos($xItem, "\0") !== false) {
+			$err = "contains null byte character";
+			return true;
+		}
+
+		// Check for trailing/leading spaces
+		if (trim($xItem) !== $xItem) {
+			$err = "contains space character";
+			return true;
+		}
+	
+		// Check for too long file/folder name
+		if (strlen($xItem) > 255) {
+			$err = "too long (>255 characters)";
+			return true;
+		}
+
+		// Check for relative pathing using '.' or '..' characters
+		if (strpos($xItem, './') !== false || strpos($xItem, '../') !== false || strpos($xItem, '.\\') !== false || strpos($xItem, '..\\') !== false ) {
+			$err = "relative pathing using '.' or '..' characters is not allowed.";
+		}
+		
+		// Define illegal characters for both Linux and Windows
+		$illegalCharacters = [
+			'/', '\\', ':', '*', '?', '"', '<', '>', '|'
+		];
+		
+		// Check if the name contains any illegal characters
+		foreach ($illegalCharacters as $char) {
+			if (strpos($xItem, $char) !== false) {
+				$err = "contians the illegal/prohibited character: " . $char;
+				return true;
+			}
+		}
+		
+		// Additional check for Windows: Names cannot end with a dot or space
+		if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+			if (preg_match('/[\s\.]+$/', $xItem)) {
+				$err = "contains a trailing . or space character";
+				return true;
+			}
+		}
+
+		// Additional checks 
+		$xItem2 = $this->filterFilePath($xItem);
+		if ( (strcmp($xItem,$xItem2)!=0) ) {
+			$err = "Contains illegal/prohibited characters per filterFilePath()";
+			return true;
+		}
+		
+		return false;
+	}
+	
 	// -----------------------------------------------------------------------------
 	// Sanitize folder path
 	// Do not error if file/path does not exist
-	// realpath() returns false when file does not exist
+	// realpath() returns false if file does not exist
     // -----------------------------------------------------------------------------
 	public function sanitizeFolderPath ($xFilePath) {
 		
@@ -107,7 +208,7 @@ class clsFileIO {
 		$xFilePath = preg_replace('#/{2,}#', '/', $xFilePath);
 		$xFilePath = preg_replace('/\\\\{2,}/', '\\',$xFilePath);
 		$xFilePath = preg_replace('{^/*}','',$xFilePath);
-			
+		
 		// realpath() resolves relative pathing to absolute and corrects mixed (unix/windows) and multiple orrucances folder seperators
 		$xRealPath = realpath($xFilePath);
 		if (!$xRealPath) {
@@ -122,40 +223,62 @@ class clsFileIO {
 	// --------------------------------------------
     // --------------------------------------------
     function FILEIO_FORM_HEAD(){
+		
 		$xKey = "FileIO_filePath=" . $this->config['Options']['FileIO_filePath'];
 
 		echo "<form name='FileIO' method='POST' action='"   . $this->config['submitAction'] . "'>";
 		echo "<input name='FileIO_Key' type=hidden value='" . $this->outgoingData($xKey)     . "'>";
 		
-		echo "<br><table>";
-		echo "<tr><td colspan=20>";
-			echo "<h2>Qwiki File Manager</h2>";
-			echo "<B>Selected File:</B><br>&nbsp;&nbsp;&nbsp;<span class=title><B>" . basename($this->config['Options']['FileIO_filePath']) . "</B></span>";
 	}    
 
 	// --------------------------------------------
     // --------------------------------------------
-    function FILEIO_OPERATIONS() {
+    function FILEIO_FOLDER_OPERATIONS() {
+		echo "<h2>QWiki Folder Manager</h2>";
+		if (strcmp($this->config['Options']['folder'],"")!=0) echo "<h3>Selected Folder:&nbsp;&nbsp;&nbsp;<font color=blue><B>" . $this->config['Options']['folder'] . "</font></h3>";
+		echo "<h3>Create New Sub Folder</h3>";
+		echo "<ul>";
+		echo "<li>This task will create a new folder in the Selected Folder above</li>";
+		echo "<li>Relative pathing using the '.' character, spaces, and other common folder naming restrictions apply and will be verified before folder creation</li>";
+		echo "</ul>";
+		echo "<h3>Input New Folder Name:&nbsp;&nbsp;";
+			echo "<input type=text  name='FileIO_CreateFolderName' size=40>";
+			echo "</h3>";
+		echo "&nbsp;&nbsp;&nbsp;<input type=submit name='FileIO_Action' value='Create New Folder'>";
 
-		echo "<h3>Copy / Rename</h3>";
+		echo "<h3>Notes:</h3><ul>";
+		echo "<li>Folder operations will fail if the server web process does not have write permission to modify the Selected Folder</li>";
+		echo "</ul>";
+	}
+
+	// --------------------------------------------
+    // --------------------------------------------
+    function FILEIO_OPERATIONS() {
+		
+		echo "<h2>QWiki File Manager</h2>";
+
+		echo "<h3>Current Folder:&nbsp;&nbsp;&nbsp;<font color=blue><B>" . $this->config['Options']['folder'] . "</font></h3>";
+		echo "<h3>Selected File:&nbsp;&nbsp;&nbsp;<font color=blue><b>" . basename($this->config['Options']['FileIO_filePath']) . "</B></font></h3>";
+
+		echo "<h3>Copy / Rename File</h3>";
 		echo "<ul>";
 		echo "<li>Rename or Copy the file to a new file</li>";
 		echo "<li>Will fail if the Specified File Name already exists</li>";
 		echo "</ul>";
-		echo "<br><B>New File Name:</B>&nbsp;&nbsp;";
-		echo "<input type=text  name='FileIO_FileNameNew' size=100>";
+		echo "<B>New File Name:</B>&nbsp;&nbsp;";
+		echo "<input type=text  name='FileIO_FileNameNew' size=40>";
 		echo "<br><br>&nbsp;&nbsp;&nbsp;<input type=submit name='FileIO_Action' value='Copy File'>";
 		echo "&nbsp;&nbsp;&nbsp;<input type=submit name='FileIO_Action' value='Rename File'>";
 
-		echo "<h3>Delete</h3>";
+		echo "<h3>Delete File</h3>";
 		echo "<ul>";
 		echo "<li>This process will delete the file</li>";
-		echo "<li>There is no way for the Qwiki program to recover the file <em>(unless the computer administrator maintains it's own backups)</em></li>";
+		echo "<li>There is no way for the QWiki program to recover the file <em>(unless the computer administrator maintains it's own backups)</em></li>";
 		echo "<li>You may want to <b>Archive</b> the file first unless you are sure it is no longer required</li>";
 		echo "</ul>";
 		echo "&nbsp;&nbsp;&nbsp;<input type=submit name='FileIO_Action' value='Delete File'>";
 	
-		echo "<h3>Archive</h3>";
+		echo "<h3>Archive File</h3>";
 		echo "<ul>";
 		echo "<li>This process will archive a date-stampted copy of the file in a folder named: <em>Save</em></li>";
 		echo "<li>The file will have the: _YYYY-MM-DD, date stamp appended to the root portion of the file name. if (the file name is:  MyDocument.ppt, it will be saved as:  MyDocument_YYYY-MM-DD.ppt</li>";
@@ -179,6 +302,11 @@ if(0) {
 
 		echo "</td></tr>";
 		echo "</table>";
+
+		echo "<h3>Notes:</h3><ul>";
+		echo "<li>File operations will fail if the server web process does not have write permission to modify the Current Folder or the Selected File</li>";
+		echo "</ul>";
+
 	}
 
 	// --------------------------------------------
@@ -186,13 +314,74 @@ if(0) {
     function FILEIO_FORM_TAIL(){
 		echo "</form>";
 
-		echo "<h3>Notes:</h3><ul>";
-			echo "<li>Qwiki File Manager must have RW permissions in the folder where the file resides.</li>";
-			echo "<li>If you are authorized, you may be able to manually mount the folder or share where the file resides and manually perform changes.</li>";
-		echo "</ul>";
 	}
 
-	
+	// --------------------------------------------
+    // --------------------------------------------
+    function FOLDER_CREATE($aOptions) {
+		
+		// current folder path
+		$xFolderPath = $this->config['folderPath'];		
+		if (is_null($xFolderPath) || (strcmp($xFolderPath,"")==0) ) {
+			$this->config['error'] = "The folder path was not provided, Get Help";
+			return false;
+		}
+		if (! is_dir($xFolderPath)) {
+			$this->config['error'] = "The parent folder does not exist, Get Help";
+			return false;
+		}
+
+		// new folder name
+		$xFileIO_CreateFolderName = null;
+		if (isset($_REQUEST['FileIO_CreateFolderName'])) $xFileIO_CreateFolderName = $_REQUEST['FileIO_CreateFolderName'];
+		if (is_null($xFileIO_CreateFolderName) || (strcmp($xFileIO_CreateFolderName,"")==0) ) {
+			$this->config['error'] = "Folder name was not provided";
+			return false;
+		}
+		$this->config['Options']['FileIO_CreateFolderName'] = $xFileIO_CreateFolderName;
+		
+		// Verify name of new folder does not contain prohibited or illegal characters.
+		if ($this->containsIllegalCharacters($this->config['Options']['FileIO_CreateFolderName'], $this->config['error'])) {
+		 	return false;
+		}
+
+		// new folder path
+		$xFolderPathNew = $xFolderPath . $this->config['folderSep'] . $xFileIO_CreateFolderName;
+		$this->config['Options']['FileIO_CreateFolderPath'] = $this->sanitizeFolderPath($xFolderPathNew);
+		
+
+		// Verify new folder does not exist
+		if (is_dir($this->config['Options']['FileIO_CreateFolderPath'])) {
+			$this->config['error'] = "New folder already exists, please input an alternate name and try again";
+			return false;
+		}
+		
+		// Verify new folder path is a sub-directory of the root folder
+		if (! $this->isItemInRootFolder($this->config['rootPath'], $this->config['Options']['FileIO_CreateFolderPath'], false) ) {
+			$this->config['error'] = "New folder does not reside in QWiki root, Get Help";
+			return false;
+		}
+		
+		// Verify that new folder path does not contain illegal characters
+		// ISSUE:  currently it checks for slash characters which is valid in a folder path
+		//if ($this->containsIllegalCharacters($this->config['Options']['FileIO_CreateFolderPath'], $this->config['error'])) {
+		//	return false;
+		//}
+
+		
+		if ($this->MyDebug) {
+			$this->config['error'] = "ATTENTION:  debugging is enabled, the folder process was verified but the actual folder was not created";
+			return false;
+		} else {
+			if (!mkdir($this->config['Options']['FileIO_CreateFolderPath']) ){
+				$this->config['error'] = "Failed to create new folder: " . $this->config['Options']['FileIO_CreateFolderName'] . ", could there be permission restrictions?";
+				return false;
+			}
+		}
+
+        return true;
+    }
+
 	// --------------------------------------------
     // Requires: filePath (relative or full)
     // --------------------------------------------
@@ -314,19 +503,33 @@ $objFIO = new QWFileIO($objQW->config);
 $objQW->displayPageOptions();
 	
 
-// delete file
+// ----------------------------------------------------------
+// User submitted fileio form to perform an action
+// ----------------------------------------------------------
 switch (strtoupper($config['Options']['FileIO_Action'])) {
-	case "DELETE FILE":
-		if (!$objFIO->FILEIO_DELETE($config['Options']['FileIO_Action'])) {
+	case "CREATE NEW FOLDER":
+		if (!$objFIO->FOLDER_CREATE($config) ) {
 			echo "<br><br><div class=title>ERROR: " . $objFIO->config['error'] . "</div>";
 		} else {
-			echo "<br><br><div class=info>The file was successfully deleted</div>";
+			//echo "<br><br><div class=info>The folder: " .   . ", was successfully created</div>";
+			echo "<br><br><div class=info>The folder was successfully created</div>";
 		}
 		echo "<br>&nbsp;&nbsp;";
 		$objQW->ReturnToQwikiButton(null);
 		exit;
 		break;
 
+	case "DELETE FILE":
+			if (!$objFIO->FILEIO_DELETE($config['Options']['FileIO_Action'])) {
+				echo "<br><br><div class=title>ERROR: " . $objFIO->config['error'] . "</div>";
+			} else {
+				echo "<br><br><div class=info>The file was successfully deleted</div>";
+			}
+			echo "<br>&nbsp;&nbsp;";
+			$objQW->ReturnToQwikiButton(null);
+			exit;
+			break;
+	
 	case "COPY FILE":
 		// realPath to src file initialized by FileIO Manage File form as an encrypted form parameter
 		// TODO:  should also pass folderSep in form too if clsQW is not used by the main application
@@ -374,9 +577,25 @@ switch (strtoupper($config['Options']['FileIO_Action'])) {
 		break;
 	}
 
-// Default to show FileIO "manage" options
+
+// -------------------------------------------------------
+// -------------------------------------------------------
+
 $objFIO->FILEIO_FORM_HEAD(null);
-$objFIO->FILEIO_OPERATIONS(null);
+
+$xFIOAction = "";
+if (isset($objFIO->config['Options']['FileIO_Action'])) $xFIOAction = $objFIO->config['Options']['FileIO_Action'];
+
+// Only present folder or file operation menus depending on what where managing
+switch (strtoupper($xFIOAction)) {
+	case "CREATEFOLDER":
+		$objFIO->FILEIO_FOLDER_OPERATIONS(null);
+		break;
+	default:
+		$objFIO->FILEIO_OPERATIONS(null);
+		break;
+}
+
 $objFIO->FILEIO_FORM_TAIL(null);
 
 ?>

@@ -55,10 +55,12 @@ class QuickWiki {
         
         if (is_null($this->config)) return true;
 
-        // Use folderSanitized if folder was not provided
+        // folder was not provided so were viewing root of this QW.
         if ( is_null($this->config['folder']) || (strcmp($this->config['folder'],"")==0) ) {
-            if (!is_null($this->config['folderSanitized']) && (!strcmp($this->config['folderSanitized'],"")==0) ) {
-                $this->config['folder'] = $this->config['folderSanitized'];
+            if (isset($this->config['folderSanitized'])) {
+                if (!is_null($this->config['folderSanitized']) && (!strcmp($this->config['folderSanitized'],"")==0) ) {
+                    $this->config['folder'] = $this->config['folderSanitized'];
+                }
             }
         }
 
@@ -71,11 +73,11 @@ class QuickWiki {
         $this->config['folderSanitized'] = $this->sanitizeFolderPath($this->config['folder']);
         
         $this->config['realPath'] = realpath($this->config['folderPath']); 
-        if (!$this->config['realPath']) echo "<li>ERROR:  real path does not exist:  $this->config['realPath']</li>";
+        //if (!$this->config['realPath']) echo "<li>ERROR:  real path does not exist:  $this->config['realPath']</li>";
 
         if (!is_dir($this->config['folderPath'])){
             // TODO:  expand on error message
-			echo "ERROR: the specified Qwiki folder does not exist anymore...";
+			echo "<font color=red>ERROR: the Qwiki folder does not exist. Get Help.</font>";
 			die;
 		}
 
@@ -262,7 +264,19 @@ class QuickWiki {
             '<a href="#" onclick="location.reload(); return false;"  title="Reload Page">' . 
             '<img src="' . $this->config['qwURL'] . '/Images/Icon_FolderRefresh.png" border=0 height=30>' .
             '<br><span class=comment>Refresh</span></a>' .
-            '</td>';     
+            '</td>';
+            
+            
+        // -------------------------------------------------
+        $xOptions = "FileIO_Action=CreateFolder&folder=" . $this->config['folder'];
+        if ($this->config['ENCRYPTION']) $xOptions = $this->objENC->encryptData($xOptions);
+        $xURL  = $this->config['qwServerURL'] . "?" . $xOptions;    
+        
+        echo '<td align=center style="width: 1%; white-space: nowrap;" >' .
+            '<a href="' . $xURL . '" title="Create New Folder In Current Working Directory">' .
+            '<img src="' . $this->config['qwURL'] . '/Images/Icon_FolderAdd.png" border=0 height=30>' .
+            '<br><span class=comment>New Dir</span></a>' .
+            '</td>';
         
         // -------------------------------------------------
         // Upload
@@ -308,14 +322,10 @@ class QuickWiki {
         }
 
 		// -------------------------------------------------
-if (0) {
-        $xURL  = $this->config['qwURL'] . "/Editor.php?EditorFile=" . $this->config['folderPath'] . "\\" . "-Content.php";
-		$xURL  = str_replace("\\","\\\\",$xURL);     
-} else {
         $xOptions = "Editor=1&folder=" . $this->config['folder'] . "&EditorFile=" . $this->config['folder'] . $this->config['folderSep'] . "-Content.php";
         if ($this->config['ENCRYPTION']) $xOptions = $this->objENC->encryptData($xOptions);
         $xURL  = $this->config['qwServerURL'] . "?" . $xOptions;
-}
+
         // -------------------------------------------------
         echo '<td align=center style="width: 1%; white-space: nowrap;">' .
             "<a href=\"#\" onClick=\"window.open('" . $xURL . "');\" title='Edit Qwiki Content'>" .
@@ -348,7 +358,8 @@ if (0) {
         $this->nav_menu(null);
 
         // -------------------------------------------------
-        $xOpt = $this->objENC->encryptData("Profile=1");
+        $xOpt = "Profile=1&folder=" . $this->config['folder'];
+        $xOpt = $this->objENC->encryptData($xOpt);
         echo '<td align=right style="width: 1%; white-space: nowrap;">' . 
             '<a href="'  . $this->config['qwServerURL'] . '?' . $xOpt . '">' .
             '<img src="' . $this->config['qwURL'] . '/Images/Icon_Profile1.png" border=0 height=30 title="Profile">' .
@@ -371,6 +382,7 @@ if (0) {
 	public function nav_menu($aOptions) {
         $qwURL = $this->config['qwURL'];
         $qwHP  = $this->config['qwServerURL'];
+        $qwD   = $this->config['qwServerURL'] . "?ChooseQwiki=1";
         echo <<<EOHERE
         <style>
           .menu-popup {
@@ -400,7 +412,8 @@ if (0) {
         </td>
         
         <div id="menuPopup" class="menu-popup" onmouseleave="hideMenuPopup()">
-          <a href="#" onclick="openURL('$qwHP','_self')">Qwiki Home Page</a>
+        <a href="#" onclick="openURL('$qwHP','_self')">Qwiki Home Page</a>
+        <a href="#" onclick="openURL('$qwD','_self')">Select a Different Qwiki</a>
           <a href="#" onclick="showDebugWindow('qwdebug'); return false;">Qwiki Debugging Info</a>
           <a href="#" onclick="openURL('https://github.com/ericledberg','_blank')">Qwiki GitHub</a>
           <a href="#" onclick="changeFontSize('increase')">Increase Font Size</a>
@@ -673,55 +686,57 @@ if (0) {
     // JavaScript manages form, submits uploaded files, and displays results w/o submitting form
     // upload.js verifies allowed file types and size limitations and submits files to:  upload.php
     // upload.php again verifies allowed file types and size limitations and places them in the proper folder (cwd) 
-    // TODO:  accept tag needs improvement and thought.  Possibly set what to exclude?
+    // Note:  upload.js must be after this form which creates <input> tags it references
     // -----------------------------------------------------------------------------
     public function displayUploadForm($aOptions){
+
+        if (! isset($this->config['realPath']) || ! isset($this->config['folder'])) {
+            echo "ERROR: displayUploadForm(), realPath and/or folder not defined, Get Help";
+            exit;
+        }
+
+        $xOptions = "realPath=" . $this->config['realPath'] . "&folderPath=" . $this->config['folderPath'];
+        $xKey     = $this->objENC->encryptData($xOptions);
+        $xURL     = $this->config['qwServerURL'] . "?" . $this->objENC->encryptData("folder=" . $this->config['folder']);
+        $xTitle   = $this->config['folder'];
+        $xQW      = $this->config['QWNAME'];
         
-        $xOptions          = "folder=" . $this->config['folder'] . "&realPath=" . $this->config['realPath'] . "&folderSep=" . $this->config['folderSep'];
-        if ($this->config['ENCRYPTION']) {
-             $xOptions     = $this->objENC->encryptData($xOptions); 
-        } 
-        $xURL    = $this->config['qwServerURL'] . "?" . $xOptions;
-        $xTitle  = $this->config['folder'];
-        $xQW     = $this->config['QWNAME'];
-        
-echo <<<EOHERE
+        echo <<<EOHERE
 
-<link rel="stylesheet" type="text/css" href="Upload.css">
+        <link rel="stylesheet" type="text/css" href="Upload.css">
 
-<div class=title>$xQW</div>
-<br>
-You will upload file(s) into this folder:
-&nbsp;&nbsp;<div class=info style="display:inline-block;">$xTitle</div>
-<br>
-<br>
-<ul class=md>
-<li>Select one of more files to upoad</li>
-<li>A total of 6MB may be uploaded each upload attempt</li> 
-<li>Specific file extensions may not be allowed e.g.:  .exe</li>
-<li>Uploaded files will silenty replace files with the same name</li>
-</ul>
-<br>  
-<form>
-<input type="file" id="uploadFiles" name="uploadFiles" accept=".jpg, .jpeg, .png, .gif, .pdf, .txt, .zip, .7z" multiple="" style="opacity: 0;">
-<input type="text" id="uploadKey" name="uploadKey" style="display:none" value="$xOptions">
-<div>
-    <label for="uploadFiles">Choose file(s) to upload</label>
-    &nbsp;&nbsp;<button style="display:inline-block;" onclick="GoToURL('$xURL','_self'); return false;">Return To Qwiki</button>
-    <div id="buttonSubmit" style="display:none" onclick="submitUpload(); return false;">
-        &nbsp;&nbsp;<button>Submit</button>
-    </div>
-</div>
-<br>
-<div class="preview"></div>
-<div id="status">
-    <br>
-</div>
-</form>
-<script src="Upload.js"></script>
-EOHERE;
+        <div class=title>$xQW</div>
+        <br>
+        Files will reside in this folder:
+        &nbsp;&nbsp;<div class=info style="display:inline-block;">$xTitle</div>
+        <br>
+        <br>
+        <ul class=md>
+        <li>Select one of more files to upoad</li>
+        <li>A total of 6MB may be uploaded each attempt</li> 
+        <li>Specific file extensions may not be allowed e.g.:  .exe</li>
+        <li>Uploaded files will silenty replace files with the same name</li>
+        </ul>
+        <br>  
+        <form>
+        <input type="file" id="uploadFiles" name="uploadFiles" accept=".jpg, .jpeg, .png, .gif, .pdf, .txt, .zip, .7z" multiple="" style="opacity: 0;">
+        <input type="text" id="uploadKey" name="uploadKey" style="display:none" value="$xKey">
+        <div>
+            <label for="uploadFiles">Choose file(s) to upload</label>
+            &nbsp;&nbsp;<button style="display:inline-block;" onclick="GoToURL('$xURL','_self'); return false;">Return To Qwiki</button>
+            <div id="buttonSubmit" style="display:none" onclick="submitUpload(); return false;">
+                &nbsp;&nbsp;<button>Submit</button>
+            </div>
+        </div>
+        <br>
+        <div class="preview"></div>
+        <div id="status">
+            <br>
+        </div>
+        </form>
+        <script src="Upload.js"></script>
+        EOHERE;
 
-        // Note:  upload.js must be after form and <input> tag are defined
    }
 
     // -----------------------------------------------------------------------------

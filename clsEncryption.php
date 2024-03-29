@@ -44,11 +44,7 @@ class clsEncryption {
 	// see:  https://www.php.net/manual/en/function.openssl-encrypt.php
     // ----------------------------------------------------------
 	function encryptData($data) {
-        
-        if (is_null($data))        return false;
-		if (!is_string($data))     return false;
-		if ((strcmp($data,"")==0)) return false;
-		
+        if (!isset($data) || trim($data) == '') return false;             // null or empty
         $first_key            = base64_decode($this->Config['KEY1']);
         $second_key           = base64_decode($this->Config['KEY2']);                 
         $method               = "aes-256-cbc";    
@@ -63,13 +59,13 @@ class clsEncryption {
     // ------------------------------------------------------------------
 	// ------------------------------------------------------------------
 	function decryptData($input) {
-
+        if (!isset($input) || trim($input) == '') return false;             // null or empty
         $first_key            = base64_decode($this->Config['KEY1']);
-        $second_key           = base64_decode($this->Config['KEY2']);
+        $second_key           = base64_decode($this->Config['KEY2']);       
         $mix                  = base64_decode($input);        
         $method               = "aes-256-cbc";
         $iv_length            = openssl_cipher_iv_length($method);            
-        $iv                   = substr($mix,0,$iv_length);
+        $iv                   = substr($mix,0,$iv_length);       
         $second_encrypted     = substr($mix,$iv_length,64);
         $first_encrypted      = substr($mix,$iv_length+64);
         $data                 = openssl_decrypt($first_encrypted,$method,$first_key,OPENSSL_RAW_DATA,$iv);      
