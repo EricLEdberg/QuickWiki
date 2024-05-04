@@ -1,68 +1,37 @@
 <?php
 /**
  * ---------------------------------------------------------------------------------
- * Methods to use and manage the MySQL Full Text Search
+ * QW methods to use and manage MySQL Full Text Search
  * Eric Edberg 9/2016, 2/2024
  * ---------------------------------------------------------------------------------
  */
 
 /*
-
--- ----------------------------------------------------------------------------
--- Table testingservices.searchfulltext
--- Mobility Database Script - ELE 2017/05/30 
--- Note ENGINE=MyISAM required to support Full Text Search using MySQL 5.5
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `testingservices`.`searchfulltext` (
-  `id` INT(11) NOT NULL COMMENT '',
-  `server` VARCHAR(64) NOT NULL COMMENT '',
-  `url` VARCHAR(256) NULL DEFAULT NULL COMMENT '',
-  `app` VARCHAR(45) NOT NULL COMMENT '',
-  `instance` VARCHAR(45) NULL DEFAULT NULL COMMENT '',
-  `pkey` VARCHAR(256) NOT NULL COMMENT '',
-  `title` VARCHAR(256) NOT NULL COMMENT '',
-  `body` TEXT NOT NULL COMMENT '',
-  `dateupdated` DATETIME NULL COMMENT '',
-  PRIMARY KEY (`server`, `app`, `pkey`(255))  COMMENT '',
-  INDEX `IX_app` (`app` ASC)  COMMENT '',
-  INDEX `IX_server` (`server` ASC)  COMMENT '',
-  INDEX `IX_id` (`id` ASC)  COMMENT '',
-  INDEX `IX_instance` (`instance` ASC)  COMMENT '',
-  INDEX `IX_pkey` (`pkey`(255) ASC)  COMMENT '',
-  FULLTEXT INDEX `IX_body` (`body`(255) ASC, `title`(255) ASC)  COMMENT '')
-ENGINE = MyISAM
-AUTO_INCREMENT = 4266
-DEFAULT CHARACTER SET = latin1;
-
--- ----------------------------------------------------------------------------
--- Table testingservices.searchfulltext
--- PLS Database Script
--- ELE 2017 initial repository
--- Note default ENGINE=InnoDB with built-in support for Full Text Search using MySQL 5.6+
--- ----------------------------------------------------------------------------
 CREATE TABLE `searchfulltext` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `server` varchar(64) NOT NULL,
   `url` varchar(256) DEFAULT NULL,
-  `app` varchar(45) NOT NULL,
-  `instance` varchar(45) DEFAULT NULL,
+  `app` varchar(64) NOT NULL,
+  `instance` varchar(64) NOT NULL,
   `pkey` varchar(256) NOT NULL,
   `title` varchar(256) NOT NULL,
   `body` text NOT NULL,
-  `dateupdated` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`server`,`app`,`pkey`),
+  `dateupdated` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'GMT time this mysql record was updated',
+  `datemodified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'GMT body was last updated',
+  PRIMARY KEY (`server`,`app`,`pkey`,`instance`),
   KEY `IX_app` (`app`),
   KEY `IX_server` (`server`),
   KEY `IX_id` (`id`),
   KEY `IX_instance` (`instance`),
   KEY `IX_pkey` (`pkey`),
   FULLTEXT KEY `IX_body` (`body`,`title`)
-) ENGINE=InnoDB AUTO_INCREMENT=76 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=1783 DEFAULT CHARSET=latin1;
+
 */
 
-class clsSearchFullText {
+class clsFullTextSearch {
 	
-	public  $Version         = "1.3";
+	public  $Version         = "1.5";
 	public  $MyDebug         = false;
 	public  $error           = NULL;
 	public  $objDB           = NULL;
@@ -82,10 +51,18 @@ class clsSearchFullText {
 
 	public  $gaaMYSQLInfo     = NULL;                          // Default is NULL and should be initialized by app
 
-	public function __construct() {		
+	public function __construct($aConfig) {		
+		
 		$this->server      = php_uname('n');
 		$this->app         = "qwiki";
 		$this->pkey        = time();
+		
+		// DB connection details
+		// TODO:  should contain other options too
+
+		//$this->gaaMYSQLInfo = $aConfig['config']['FTSDB'];
+		//$this->gaaMYSQLInfo = $aConfig['FTSDB'];
+		$this->gaaMYSQLInfo = $aConfig;
 		
 		if (!function_exists('mysqli_init') && !extension_loaded('mysqli')) {
 			echo 'ERROR:  php extension:  mysqli, is not loaded in php.ini.';
@@ -103,25 +80,14 @@ class clsSearchFullText {
 	
 	// ----------------------------------------------------------
 	// Open connection to DB if object was not passed by calling application
-	// See: Global.php, for typical definition
+	// ISSUE:  connection to DB on invalid host (ip) times out after 30 seconds and causes error.
+	//         Why is connect_err not set when the DB is not responding or even exist?
 	// ----------------------------------------------------------
 	public function InitDB() {
-		
-		// Needed to execute self-contained regression tests below
-		if (is_null($this->gaaMYSQLInfo)) {
-			$this->gaaMYSQLInfo  = array(
-				"SERVER"    => "192.168.0.141",
-				"DBNAME"    => "EdbergTools",
-				"TABLENAME" => "searchfulltext", 
-				"USER"      => "eledb", 
-				"PASS"      => "DataEdb3rg1234#",
-				"PORT"      => "3306"
-			);
-		}
-		
+
 		$this->objDB = new mysqli($this->gaaMYSQLInfo['SERVER'], $this->gaaMYSQLInfo['USER'], $this->gaaMYSQLInfo['PASS'], $this->gaaMYSQLInfo['DBNAME'],$this->gaaMYSQLInfo['PORT']);
 		if($this->objDB->connect_errno > 0){
-			die('clsSearchFullText.InitDB() - Unable to connect to database [' . $this->objDB->connect_error . ']');
+			die('clsFullTextSearch.InitDB() - Unable to connect to database [' . $this->objDB->connect_error . ']');
 		}
 
 		$this->objDBLocal = true;
@@ -172,8 +138,9 @@ class clsSearchFullText {
 	}
 
 	// ---------------------------------------------------------------------
+	// This algorithm is specific for managing a parent folder and optional child folders.
 	// INSERT or UPDATE Full Text Search database
-	// - delete key(s) contained in DKEYS array that are dependent on the PKEY (folders....)
+	// - delete key(s) contained in DKEYS array that are dependent on the PKEY
 	//   This algorithm assumes that the pkey is a folder/directory and dkey(s) are sub-folders e.g.:  pkey == current_folder & dkey(s) are sub-folders
 	//   It is tightly coupled to QwickWiki.   This code should be in clsQwiki.php as a callback since it's not a generic search method for other applications.
 	// ---------------------------------------------------------------------
@@ -192,22 +159,22 @@ class clsSearchFullText {
 
 
 		if ($this->MyDebug) {
-			echo '<li><strong>clsSearchFullText.InsertDB()</strong></li>';
+			echo '<li><strong>clsFullTextSearch.InsertDB()</strong></li>';
 		}
 			
 		// ---------------------------------------------------------------------
-		// query is a transaction because multiple inter-related commands are performed
+		// query is a transaction
 		// ---------------------------------------------------------------------
 		try {
 			if (is_null($this->objDB)) $this->InitDB();
-			
 		
 			if ($this->MyDebug) {
 				$this->dump($aOptions);
 			}
 
 			// -----------------------
-			// Insert FTS record for CWD
+			// Insert or update record
+			// MySQL table "Primary Key" fields distinquish if an insert or update should occur
 			// -----------------------
 
 			$xFields   = "";
@@ -230,6 +197,13 @@ class clsSearchFullText {
 			$xValues  .= ", '" . mysqli_real_escape_string($this->objDB, $aOptions['INSTANCE']) . "'";
 			$xStrDup  .=  ", instance=VALUES(instance)";
 			
+			if (isset($aOptions['DATEMODIFIED'])) {
+				$xDT       = date('Y-m-d H:i:s', $aOptions['DATEMODIFIED']);               // convert GMT mtime to datetime
+				$xFields  .= ", datemodified";
+				$xValues  .= ", '" . mysqli_real_escape_string($this->objDB, $xDT) . "'";
+				$xStrDup  .=  ", datemodified=VALUES(datemodified)";
+			}
+			
 			$xFields  .= ", url";
 			$xValues  .= ", '" . mysqli_real_escape_string($this->objDB, $aOptions['URL']) . "'";
 			$xStrDup  .=  ", url=VALUES(url)";
@@ -241,8 +215,10 @@ class clsSearchFullText {
 			$xFields  .= ", body";
 			$xValues  .= ", '" . mysqli_real_escape_string($this->objDB, $aOptions['BODY']) . "'";
 			$xStrDup  .=  ", body=VALUES(body)";
-			
-			// $xValues could specify more than 1 row of values e.g.:   (...) (...) 
+
+			// hint:   $xValues could specify more than 1 row of values at a time e.g.:   (...) (...) 
+			// It is very efficient if many rows are submitted simultaneously.  Data validation is key though to prevent transaction from failing!
+			// I previously used to bulk-update 200 rows at a time in other applications
 			$xValues   = "(" . $xValues . ")";
 			
 			$xSql      = "INSERT INTO " . $this->gaaMYSQLInfo['TABLENAME'] . " (" . $xFields . ") VALUES " . $xValues;		
@@ -250,11 +226,14 @@ class clsSearchFullText {
 			$xSql    .= ";";
 			
 			// Submit Insert/Update query
-			if ($this->MyDebug) echo "<li>...SQL1: " . $xSql . "</li>";
+			if ($this->MyDebug){
+				echo "<li>...SQL1: " . $xSql . "</li>";
+				exit;
+			}
 			$objSqlResults = $this->objDB->query($xSql);
 			
 			// -----------------------
-			// Delete child folders of the CWD that do no longer exist
+			// Delete child folders of the current folder that no longer exist
 			// These folders were deleted/removed by unknown means, often manually by users managing files/folders/content themselves
 			// -----------------------
 			if (is_array($aOptions['DKEYS'])) {
@@ -268,21 +247,24 @@ class clsSearchFullText {
 					// The last sub-folder may have been deleted.
 
 				} Else If ($xCnt > 0) {
-								
+						
+					// record KEY
 					$dkeySQL  = "DELETE FROM searchfulltext WHERE searchfulltext.id IN ( ";
 					$dkeySQL .= "SELECT T2.id FROM (SELECT searchfulltext.id, searchfulltext.pkey FROM searchfulltext ";
 					$dkeySQL .= "WHERE ";
 					$dkeySQL .= "    searchfulltext.server='"   . mysqli_real_escape_string($this->objDB, $aOptions['SERVER'])   . "' ";
 					$dkeySQL .= "AND searchfulltext.app='"      . mysqli_real_escape_string($this->objDB, $aOptions['APP'])      . "' ";
-					$dkeySQL .= "AND searchfulltext.instance='" . mysqli_real_escape_string($this->objDB, $aOptions['INSTANCE']) . "' ";							
-					// Recursively add all folders relative to the current pkey folder tree node
+					$dkeySQL .= "AND searchfulltext.instance='" . mysqli_real_escape_string($this->objDB, $aOptions['INSTANCE']) . "' ";
+
+					// Step 1:  Delete ALL folders relative the current folder recursively, including the current folder.
 					$dkeySQL .= "AND searchfulltext.pkey LIKE '"         . $this->MySQLEscape(str_replace("\\","\\\\",$aOptions['PKEY']))  . "%' ";
-					// Exclude pkey root folder
+
+					// Step 2:  Exclude current folder since it's the one were currently indexing
 					$dkeySQL .= "AND searchfulltext.pkey NOT LIKE '"     . $this->MySQLEscape(str_replace("\\","\\\\",$aOptions['PKEY']))  . "' ";
 
-					// do not delete sub-folder (dkey) that currently exists
+					// Step 3:  Exclude all child folders (and their sub-folders) that still exist in the current folder
+					// Any child folder (and it's sub-folders) that physically does not exist anymore will be deleted from FTS based on step #1...
 					foreach($aOptions['DKEYS'] as $xKey => $xValue) {
-						// $this->dump($xValue);
 						$xKey     = $xValue['pkey'];
 						$dkeySQL .= "AND searchfulltext.pkey NOT LIKE '" .  $this->MySQLEscape(str_replace("\\","\\\\",$xKey)) . "%' ";
 					}	
@@ -310,7 +292,7 @@ class clsSearchFullText {
 			$aOptions['ERROR'] = $e;
 
 			if ($this->MyDebug){
-				echo "<li>clsSearchFullText.php->InsertDB(): EXCEPTION ERROR: " . print_r($e) . "</li>";
+				echo "<li>clsFullTextSearch.php->InsertDB(): EXCEPTION ERROR: " . print_r($e) . "</li>";
 			} 
 			
 			$this->objDB->rollback(); 
@@ -318,6 +300,7 @@ class clsSearchFullText {
 			return False;
 		}
 
+		if ($this->MyDebug) echo "<li>objFTS->InsertDB(): updated database</li>";
 		return True;
 	}
 
@@ -356,14 +339,14 @@ class clsSearchFullText {
 // Not really  tests :-(
 // ---------------------------------------------------------------------
 if ( isset($_SERVER["SCRIPT_NAME"])) {
-	if (basename($_SERVER["SCRIPT_NAME"]) == "clsSearchFullText.php") {
+	if (basename($_SERVER["SCRIPT_NAME"]) == "clsFullTextSearch.php") {
 		// echo "<h1>Class Full Text Search Test</h1>";
 		
 		$xMODE = "";
 
 		If (IsSet($_REQUEST['MODE'])) $xMODE = $_REQUEST['MODE'];
 		
-		$objFTS          = new clsSearchFullText();
+		$objFTS          = new clsFullTextSearch();
 		$objFTS->MyDebug = True;
 		
 		// ------------------------------------------
@@ -389,7 +372,7 @@ if ( isset($_SERVER["SCRIPT_NAME"])) {
 		// ------------------------------------------
 		if ($xMODE == "INSERT"){
 			
-			if ($objFTS->MyDebug == True) echo "<li>clsSearchFullText.php:  xMODE: " . $xMODE . ", " . $_REQUEST['app'] . "</li>";
+			if ($objFTS->MyDebug == True) echo "<li>clsFullTextSearch.php:  xMODE: " . $xMODE . ", " . $_REQUEST['app'] . "</li>";
 			
 			If (IsSet($_REQUEST['app']))        $objFTS->app      = $_REQUEST['app'];
 			If (IsSet($_REQUEST['instance']))   $objFTS->instance = $_REQUEST['instance'];

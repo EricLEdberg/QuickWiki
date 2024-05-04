@@ -1,30 +1,89 @@
 {
     "config": {
+       "contentFileName": "-Content.php",
+       "QWconfigFileName": ".QWconfig.json",
+       "QWPROGRAM": "QW.php",
+       "ArchiveFolderName": "Save",
+       "folderSep": "\\",
        "MyDebug": true,
-       "SearchEnabled": true,
-       "UploadEnabled": true,
        "FileIOAction": null,
-       "ENCRYPTION": true,
-       "CUSTOMBODY": "style=\"background: #e6fffa;\""
+       "CUSTOMBODY": "style=\"background: #e6fffa;\"",
+       "FEATURE": {
+          "SEARCH": true,
+          "AUTH": true,
+          "UPLOAD": true,
+          "EDIT": true
+       },
+       "FTSDB": {
+            "SERVER": "192.168.0.141",
+            "DBNAME": "EdbergTools",
+            "TABLENAME": "searchfulltext", 
+            "USER": "eledb", 
+            "PASS": "DataEdb3rg1234#",
+            "PORT": "3306"
+       },
+       "invalidFileNames": "index.,synctoy,sync.ffs_lock,thumbs,web",
+       "invalidExtensions": "asp, htm, html, php, pl, db, .exe, .sh, .ksh, .bsh",
+       "invalidHidden": "., -, ~"
     },
     "server": {
         "susiepc": {
             "EdbergNet": {
+                "QWID": 1,
+                "QWKEY": "EdbergNet",
                 "QWNAME": "EdbergNet Qwiki",
-                "qwURL": "https://susiepc/QWiki/QW",
+                "QWURL": "https://susiepc/QWiki/QW",
+                "QWPROGRAM": "QW.php",
                 "QWABSTRACT": "Edberg Family Technical Information",
                 "rootURL": "https://susiepc/Qwiki/EdbergQwiki",
                 "rootPath": "P:\\Qwiki\\EdbergQwiki",
                 "CUSTOMBODY": "style=\"background: #e6fffa;\""
             },
             "BirdNest": {
+                "QWID": 2,
+                "QWKEY": "BirdNest",
                 "QWNAME": "BirdNest Qwiki",
-                "qwURL": "https://susiepc/QWiki/QW",
+                "QWURL": "https://susiepc/QWiki/QW",
+                "QWPROGRAM": "QW.php",
                 "QWABSTRACT": "Bird Family Technical Information",
                 "rootURL": "https://susiepc/Qwiki/BirdNestQwiki",
                 "rootPath": "P:\\Qwiki\\BirdNestQwiki",
                 "CUSTOMBODY": "style=\"background: #efefef;\""
             }
-        }
+        },
+        "elelinux": {
+            "EdbergNet": {
+                "QWID": 3,
+                "QWKEY": "EdbergNet",
+                "QWNAME": "EdbergNet Qwiki MIRROR",
+                "QWURL": "http://elelinux/QW",
+                "QWPROGRAM": "QW.php",
+                "QWABSTRACT": "Edberg Family Technical Information - ELELINUX MIRROR",
+                "rootURL": "http://elelinux/QW/EdbergQwiki",
+                "rootPath": "/var/www/html/QW/EdbergQwiki",
+                "folderSep": "/",
+                "CUSTOMBODY": "style=\"background: #e6fffa;\""
+            }
+        },
+        "edbergnet": {
+            "EdbergNet": {
+                "QWID": 4,
+                "QWKEY": "EdbergNet",
+                "QWNAME": "EdbergNet Public Qwiki",
+                "QWURL": "https://EdbergNet.com/QWiki",
+                "QWPROGRAM": "QW.php",
+                "QWABSTRACT": "Edberg Public Qwiki",
+                "rootURL": "https://EdbergNet.com/EdbergNetQWiki",
+                "rootPath": "/kunden/homepages/24/d661958693/htdocs/EdbergNetQWiki",
+                "folderSep": "/",
+                "CUSTOMBODY": "style=\"background: #e6fffa;\"",
+                "FEATURE": {
+                    "SEARCH": false,
+                    "AUTH": true,
+                    "UPLOAD": true,
+                    "EDIT": true
+                 }
+            }
+        }     
     }
 }

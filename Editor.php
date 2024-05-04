@@ -5,14 +5,16 @@
 //         GAK:  submit to QW.php
 // --------------------------------------
 
-$ThisProgram           = "/Qwiki/QW/Editor.php";                     // TODO:  this should be derived, not hard coded.
-$SubmitAction          = $ThisProgram;
-$EditorText            = null;
+// This URL does not work on EdbergNet as WordPress messes with parser.
+// Need to derive full URL
+$SubmitAction  = "/Qwiki/QW/Editor.php";
+$EditorText    = null;
 
 // --------------------------------------------------------------------
 // --------------------------------------------------------------------
 if (is_object($objQW)) {
 	$EditorFile                = $config['rootPath'] . $config['Options']['EditorFile'];
+	$SubmitAction              = $config['QWURL'] . "/" . $config['QWPROGRAM'];
 } else {
 	$EditorFile                = $_REQUEST["EditorFile"];
 }
@@ -77,11 +79,11 @@ if (file_exists($EditorFile)) {
 // ------------------------------------------------------------
 // Display EDITOR FORM
 // ------------------------------------------------------------
-echo "<script src=\"ckeditor_4510/ckeditor.js\"></script>";
+echo "\n<script src=\"ckeditor_4510/ckeditor.js\"></script>";
 
 // ------------------------------------------------------------
 // ------------------------------------------------------------
-echo "<form name=Editor method=POST action='" . $SubmitAction . "'>";
+echo "\n<form name=Editor method=POST action='" . $SubmitAction . "'>";
 echo "<input type=hidden name='EditorSubmitForm'      value=TRUE>";
 echo "<input type=hidden name='EditorFile'            value='" . $EditorFile . "'>";
 

@@ -1,9 +1,27 @@
 <?php
+// --------------------------------------------
+// --------------------------------------------
+function dump($var) {
+    echo "<div class=dbg><pre>";
+    print_r($var);
+    echo "</pre></div>";
+}
 
-require_once("clsSearchFullText.php");
 
-$objSFT          = new clsSearchFullText();
-// $objSFT->MyDebug = True;
+// --------------------------------------------
+// Read QW configuration (db connection details)
+// $qwConfigJsonDecoded['config']['FTSDB'] contains details
+// --------------------------------------------
+$qwConfigJson        = file_get_contents(".QWconfig.json");
+$qwConfigJsonDecoded = json_decode($qwConfigJson, true);                        // json to array()
+if (is_null($qwConfigJsonDecoded)) {
+    echo "ERROR:  invalid QW configuration JSON, Get Help";
+    exit;
+}
+
+require_once("clsFullTextSearch.php");
+
+$objSFT          = new clsFullTextSearch($qwConfigJsonDecoded['config']['FTSDB']);
 
 
 // ------------------------------------------
@@ -13,11 +31,12 @@ Function FTS_Header ($aOptions) {
 
 	$FTS_Header = False;
 	
+	// <td align=right><font size=3><a href='https://susiepc/Qwiki/EdbergQwiki'>EdbergNet Qwiki</font></td>
 	echo <<<EOCAT
 		<table width='100%' height=40 cellpadding=1 cellspacing=0 border=0><tr>
 		<!--- <td align=left  width=100><img src='/Qwiki/app/images/NokiaLogo.gif' height=25></td> -->
-		<td align=center><font size=4><b>Qwiki Full Text Search<b></font></td>
-		<td align=right><font size=3><a href='https://susiepc/Qwiki/EdbergQwiki'>EdbergNet Qwiki</font></td>
+		<td width=50>&nbsp;</td>
+		<td align=left><font size=6><b>Qwiki Full Text Search<b></font></td>
 		</tr></table>
 EOCAT;
 
@@ -35,11 +54,7 @@ Function FTS_SearchDelete ($aOptions) {
 	$xPKEY = $_REQUEST["pkey"];
 	
 	echo "<h1>Delete Cached Search Records</h1>";
-
-	//echo "<li>...xID: $xID</li>";
-	//echo "<li>...xPKEY: $xPKEY</li>";
-	
-	
+		
 	$objSFT->InitDB();
 
 	// Delete specific row
@@ -87,8 +102,8 @@ Function FTS_SearchForm ($aOptions) {
 		<table cellpadding=1 cellspacing=0>
 		<tr><td colspan=20 align=left><font size=4><b>Full Text Search Form</b></font></td></tr>
 		<tr>
-			<td align=right><font color=blue><b>Criteria</b>:</font></td>
-			<td align=left><input type=text size=40 name="FTS_Criteria" value="{$FTS_Criteria}" autofocus></td>
+			<td align=right><font color=blue size=4><b>Criteria</b>:&nbsp;</font></td>
+			<td align=left><input type=text style="font-size: 14" size=40 name="FTS_Criteria" value="{$FTS_Criteria}" autofocus></td>
 			<td>&nbsp;&nbsp;&nbsp;</td>
 			<td><input type=Submit value='Search'></td>
 			<td>
@@ -166,10 +181,6 @@ Function FTS_SearchExecute ($aOptions) {
 	
 	if ($FTS_Criteria == "") return;
 
-	// $FTS_Criteria = "+Saved test -Information";      # do not include word:  Information
-	// $FTS_Criteria = "+Saved test ~Information -BadWord";      # penalize (rank lower) word:   Information
-	// $FTS_Criteria = "+test Installation";
-
 	if (IsSet($_REQUEST['query'])) $FTS_Criteria = $_REQUEST['query'];
 	
 	// -----------------------------------------------------------------
@@ -213,17 +224,18 @@ Function FTS_SearchExecute ($aOptions) {
 			vertical-align:top;
 		}
 		</style>
-EOCAT;
+	EOCAT;
 
 
 
 	# ------------------------------------------------------------
 	# ------------------------------------------------------------
 	echo "<table border=1 cellpadding=1 cellspacing=0 bgcolor='FFFFee'>\n";
+
+	// "<th>Folder Path</th>" .
 	echo "<tr bgcolor='FFFFAA'>" .
-		"<th align=left>Appliction<br>Instance</th>" .
+		"<th align=left>Appliction<br>Instance<br>Server</th>" .
 		"<th align=left>Score<br>Last Updated</th>" .
-		"<th>Folder Path</th>" .
 		"<th>Text<br><em><small><font color=Maroon>(First 500 Characters)</font></small></em></th>" .
 		"<th>Admin</th>" .
 		"</tr>\n";
@@ -245,13 +257,14 @@ EOCAT;
 		// echo '<td>&nbsp;' . $row["title"]       . '</td>';
 		// echo '<td>&nbsp;' . $row["instance"]    . '</td>';
 		// echo '<td>&nbsp;' . $row["server"]      . '</td>';
-		// echo '<td>&nbsp;' . $row["url"]      . '</td>';
+		// echo '<td>&nbsp;' . $row["url"]         . '</td>';
 
 		// ---------------------------------------------------
 		// ---------------------------------------------------
 		echo '<td>' .
 			$row["app"] .
 			"<br>" . $row["instance"] .
+			"<br>" . $row['server'] .
 			"</td>";
 
 		// ---------------------------------------------------
@@ -263,14 +276,18 @@ EOCAT;
 	
 		// ---------------------------------------------------
 		// ---------------------------------------------------
-		echo '<td>';
-			echo "<a href='" . $row["url"] . "'>" . $row["title"] . "</a>";
-		echo '</td>';
+		//echo '<td>';
+		//	echo "<a href='" . $row["url"] . "'>" . $row["title"] . "</a>";
+		//echo '</td>';
 		
 		// ---------------------------------------------------
 		// Body
 		// ---------------------------------------------------
-		echo '<td >&nbsp;<font size=2>' . substr($row["body"], 0, 512)        . '</font></td>';
+		echo '<td>';
+		echo "<b><a href='" . $row["url"] . "'>" . $row["title"] . "</a></b><br>";
+		echo '<font size=2>' . 
+			substr($row["body"], 0, 512) .
+			'</font></td>';
 		
 
 		// ---------------------------------------------------

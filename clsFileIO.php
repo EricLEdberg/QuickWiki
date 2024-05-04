@@ -26,13 +26,21 @@ class clsFileIO {
     // --------------------------------------------
     // INIT must be called on each page load to initialize some config[] options
     // --------------------------------------------
-    function INIT($aConfig) { 
-        $this->config['submitAction'] = "#";
+    function INIT(&$aConfig) { 
+        global $objQW;
 		
+		$this->config['submitAction'] = "#";
+		
+		// ERROR:  are these lines doing anything since were passing in $aConfig?
 		// Process $aConfig['Options']
 		if (isset($aOptions['FileIO_Action']))    $this->config['FileIO_Action'] = $aOptions['FileIO_Action'];
 		if (isset($aOptions['FileIO_Key']))       $this->config['FileIO_Key']    = $aOptions['FileIO_Key'];
 		if (isset($aOptions['FileIO_filePath']))  $this->setFilePath($aOptions['filePath']);
+
+
+		if (isset($aConfig['Options']['FileIO_filePath'])) {
+			$this->setFilePath($aConfig['Options']['FileIO_filePath']);
+		}
 
 		// Manage form fields input by user (so they are not encrypted)
 		if (isset($_REQUEST['FileIO_FileNameNew'])) $this->config['Options']['FileIO_FileNameNew'] = $_REQUEST['FileIO_FileNameNew'];
@@ -45,13 +53,13 @@ class clsFileIO {
 	// currently assume class can only process 1 file at a time (which is not a good assumption)
 	// return false if file does not exist
 	// --------------------------------------------
-    public function setFilePath(string $xFilePath) {
-        $this->config['filePathOrig'] = $xFilePath;
+    public function setFilePath(string $xFilePath) {	
+		$this->config['filePathOrig'] = $xFilePath;
         $xFilePath                    = $this->sanitizeFolderPath($xFilePath);
 		$this->config['fileRealPath'] = realpath($xFilePath);
 		$this->config['filePath']     = $this->config['fileRealPath'];
 		$this->config['fileName']     = basename($this->config['filePath']);
-		
+
 		if (!file_exists($this->config['fileRealPath'])) {
             $this->config['error'] = "File does not exist";
             return false;
@@ -116,7 +124,7 @@ class clsFileIO {
 		$xFilePath = ltrim($xFilePath, '.-');
 		
 		// maximize filename length to 255 bytes http://serverfault.com/a/9548/44086
-		$ext      = pathinfo($filename, PATHINFO_EXTENSION);
+		$ext      = pathinfo($xFilePath, PATHINFO_EXTENSION);
 		$xFilePath = mb_strcut(pathinfo($xFilePath, PATHINFO_FILENAME), 0, 255 - ($ext ? strlen($ext) + 1 : 0), mb_detect_encoding($xFilePath)) . ($ext ? '.' . $ext : '');
 		
 		return $xFilePath;
@@ -197,37 +205,43 @@ class clsFileIO {
 	// Do not error if file/path does not exist
 	// realpath() returns false if file does not exist
     // -----------------------------------------------------------------------------
-	public function sanitizeFolderPath ($xFilePath) {
+	public function sanitizeFolderPath ($xFolderPath) {
 		
-		if (is_null($xFilePath) || (strcmp($xFilePath,"")==0)) return $xFilePath;
+		if (is_null($xFolderPath) || (strcmp($xFolderPath,"")==0)) return $xFolderPath;
 
+		// Deprecated in PHP 8.1+
 		// removes tags and encode special characters
-		$xFilePath = filter_var($xFilePath, FILTER_SANITIZE_STRING);
+		// $xFolderPath = filter_var($xFolderPath, FILTER_SANITIZE_STRING);
 		
 		// replace more than 1 consequitive slash with a single slash
-		$xFilePath = preg_replace('#/{2,}#', '/', $xFilePath);
-		$xFilePath = preg_replace('/\\\\{2,}/', '\\',$xFilePath);
-		$xFilePath = preg_replace('{^/*}','',$xFilePath);
+		$xFolderPath = preg_replace('#/{2,}#', '/', $xFolderPath);
+		$xFolderPath = preg_replace('/\\\\{2,}/', '\\',$xFolderPath);
+		
+		// Why are we removing leading slash from folder?
+		// Updated QW requires a leading slash on all folder definitions
+		// $xFolderPath = preg_replace('{^/*}','',$xFolderPath);
 		
 		// realpath() resolves relative pathing to absolute and corrects mixed (unix/windows) and multiple orrucances folder seperators
-		$xRealPath = realpath($xFilePath);
+		$xRealPath = realpath($xFolderPath);
 		if (!$xRealPath) {
 			;
 		} else {
-			$xFilePath = $xRealPath;
+			$xFolderPath = $xRealPath;
 		}
 		
-		return $xFilePath;
+		return $xFolderPath;
 	}
 
 	// --------------------------------------------
     // --------------------------------------------
     function FILEIO_FORM_HEAD(){
 		
-		$xKey = "FileIO_filePath=" . $this->config['Options']['FileIO_filePath'];
-
 		echo "<form name='FileIO' method='POST' action='"   . $this->config['submitAction'] . "'>";
-		echo "<input name='FileIO_Key' type=hidden value='" . $this->outgoingData($xKey)     . "'>";
+		
+		if (isset($config['Options']['FileIO_Key'])) {
+			$xKey = "FileIO_filePath=" . $this->config['Options']['FileIO_filePath'];
+			echo "<input name='FileIO_Key' type=hidden value='" . $this->outgoingData($xKey) . "'>";
+		}
 		
 	}    
 
@@ -235,10 +249,10 @@ class clsFileIO {
     // --------------------------------------------
     function FILEIO_FOLDER_OPERATIONS() {
 		echo "<h2>QWiki Folder Manager</h2>";
-		if (strcmp($this->config['Options']['folder'],"")!=0) echo "<h3>Selected Folder:&nbsp;&nbsp;&nbsp;<font color=blue><B>" . $this->config['Options']['folder'] . "</font></h3>";
+		if (strcmp($this->config['Options']['folder'],"")!=0) echo "<h3>Current Folder:&nbsp;&nbsp;&nbsp;<font color=blue><B>" . $this->config['Options']['folder'] . "</font></h3>";
 		echo "<h3>Create New Sub Folder</h3>";
 		echo "<ul>";
-		echo "<li>This task will create a new folder in the Selected Folder above</li>";
+		echo "<li>This task will create a new folder in the current QWiki folder above</li>";
 		echo "<li>Relative pathing using the '.' character, spaces, and other common folder naming restrictions apply and will be verified before folder creation</li>";
 		echo "</ul>";
 		echo "<h3>Input New Folder Name:&nbsp;&nbsp;";
@@ -497,11 +511,32 @@ class QWFileIO extends clsFileIO {
 	}
 }
 
+
+// --------------------------------------------
+// Process clsFileIO (file and folder manager) options
+// --------------------------------------------
+if (isset($_POST['FileIO_Action'])) {
+    $config['Options']['FileIO_Action'] = $_POST['FileIO_Action'];
+}
+if (isset($_POST['FileIO_Key'])) {
+	$config['Options']['FileIO_Key']    = $_POST['FileIO_Key'];
+}
+if (isset($config['Options']['FileIO_Key'])) {
+    $config['Options']['FileIO_Key_Encrypted'] = $config['Options']['FileIO_Key'];
+    $config['Options']['FileIO_Key']           = $objENC->decryptData($config['Options']['FileIO_Key']); 
+}
+// filePath may contain , or & characters on Windows.  These need to be encoded when constructing encrypted query string
+// We do this by converting the filePath to hex.   See QW.php and clsFileIO.php
+if (isset($config['Options']['FileIO_filePath'])) {
+    $config['Options']['FileIO_filePath']      = $objENC->hexToStr($config['Options']['FileIO_filePath']);
+}
+
+// --------------------------------------------
+// --------------------------------------------
 $objFIO = new QWFileIO($objQW->config);
 
 // Display FileIO Page Header
 $objQW->displayPageOptions();
-	
 
 // ----------------------------------------------------------
 // User submitted fileio form to perform an action
@@ -511,7 +546,6 @@ switch (strtoupper($config['Options']['FileIO_Action'])) {
 		if (!$objFIO->FOLDER_CREATE($config) ) {
 			echo "<br><br><div class=title>ERROR: " . $objFIO->config['error'] . "</div>";
 		} else {
-			//echo "<br><br><div class=info>The folder: " .   . ", was successfully created</div>";
 			echo "<br><br><div class=info>The folder was successfully created</div>";
 		}
 		echo "<br>&nbsp;&nbsp;";
@@ -579,6 +613,7 @@ switch (strtoupper($config['Options']['FileIO_Action'])) {
 
 
 // -------------------------------------------------------
+// Default is to show file or folder operations page 
 // -------------------------------------------------------
 
 $objFIO->FILEIO_FORM_HEAD(null);

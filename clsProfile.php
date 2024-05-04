@@ -157,8 +157,6 @@ class clsProfile {
 		global $objENC;
 		global $objQW;
 
-		$xKey = "PROFILE_filePath=" . $this->config['Options']['PROFILE_filePath'];
-
 		echo "<h2>Qwiki User Profile</h2>";
 		if ($this->isLoggedOn(null)) {
 			echo "<button class='button' id=profileLogout onclick='GoToURL(\"" . $this->config['Auth']['logoutURL'] . "\",\"_self\"); return false;'>Qwiki Logout</button>";
@@ -168,12 +166,7 @@ class clsProfile {
 		
 		$objQW->ReturnToQwikiButton(null);
 
-		
-		echo "<form name='ProfileForm' method='POST' action='"   . $this->config['submitAction'] . "'>";
-		echo "<input name='PROFILE_Key' type=hidden value='"     . $this->outgoingData($xKey)     . "'>";
-		
-		echo "<br><table>";
-		echo "<tr><td colspan=20>";
+		$this->dump($this->config);
 	}    
 
 	// --------------------------------------------
@@ -187,7 +180,6 @@ class clsProfile {
 	// --------------------------------------------
     // --------------------------------------------
     function PROFILE_FORM_TAIL(){
-		echo "</form>";
 
 		echo "<h3>Notes:</h3><ul>";
 			echo "<li>Qwiki never has access to your password.  It is stored as a hashed value on the authentication server.  It cannot be decrypted by Qwiki at any time.</li>";
