@@ -1,67 +1,29 @@
 <?php
-// --------------------------------------------
-// --------------------------------------------
-function dump($var) {
-    echo "<div class=dbg><pre>";
-    print_r($var);
-    echo "</pre></div>";
-}
-
-
-// --------------------------------------------
-// Read QW configuration (db connection details)
-// $qwConfigJsonDecoded['config']['FTSDB'] contains details
-// --------------------------------------------
-$qwConfigJson        = file_get_contents(".QWconfig.json");
-$qwConfigJsonDecoded = json_decode($qwConfigJson, true);                        // json to array()
-if (is_null($qwConfigJsonDecoded)) {
-    echo "ERROR:  invalid QW configuration JSON, Get Help";
-    exit;
-}
+// Requires QW.php to initialize: $config['FTSDB']
 
 require_once("clsFullTextSearch.php");
 
-$objSFT          = new clsFullTextSearch($qwConfigJsonDecoded['config']['FTSDB']);
-
-
-// ------------------------------------------
-// ------------------------------------------
-Function FTS_Header ($aOptions) {
-	Global $objSFT;
-
-	$FTS_Header = False;
-	
-	// <td align=right><font size=3><a href='https://susiepc/Qwiki/EdbergQwiki'>EdbergNet Qwiki</font></td>
-	echo <<<EOCAT
-		<table width='100%' height=40 cellpadding=1 cellspacing=0 border=0><tr>
-		<!--- <td align=left  width=100><img src='/Qwiki/app/images/NokiaLogo.gif' height=25></td> -->
-		<td width=50>&nbsp;</td>
-		<td align=left><font size=6><b>Qwiki Full Text Search<b></font></td>
-		</tr></table>
-EOCAT;
-
-	$FTS_Header = True;
-}
+$objFTS = new clsFullTextSearch($config['FTSDB']);
 
 // ------------------------------------------
 // Delete references to: pkey, root and sub-folders in searchfulltext table
 // If ID is not known then pass dummy value zero (0)
 // ------------------------------------------
 Function FTS_SearchDelete ($aOptions) {
-	Global $objSFT;
+	Global $objFTS;
 	
 	$xID   = $_REQUEST["id"];
 	$xPKEY = $_REQUEST["pkey"];
 	
 	echo "<h1>Delete Cached Search Records</h1>";
 		
-	$objSFT->InitDB();
+	$objFTS->InitDB();
 
 	// Delete specific row
 	$xVal = str_replace("\\","\\\\\\\\",$xPKEY);
-	$xSql = "DELETE FROM searchfulltext WHERE (id='" . $objSFT->MySQLEscape($xID) . "' AND id > 0) OR pkey='" . $xVal . "';";	
+	$xSql = "DELETE FROM searchfulltext WHERE (id='" . $objFTS->MySQLEscape($xID) . "' AND id > 0) OR pkey='" . $xVal . "';";	
 	echo "<li><font size=2 color=maroon>" . $xSql . "</font></li>";
-	$bRet = $objSFT->ExecuteSQL($xSql);
+	$bRet = $objFTS->ExecuteSQL($xSql);
 	if ($bRet == False) {
 		echo "<font color=red size=3><em>...Oops,  The query returned false</em></font>";
 	}
@@ -71,7 +33,7 @@ Function FTS_SearchDelete ($aOptions) {
 	$xVal = str_replace("\\","\\\\\\\\",$xPKEY) . "%";
 	$xSql = "DELETE FROM searchfulltext WHERE pkey LIKE '" . $xVal . "%';";
 	echo "<li><font size=2 color=maroon>" . $xSql . "</font></li>";
-	$bRet = $objSFT->ExecuteSQL($xSql);
+	$bRet = $objFTS->ExecuteSQL($xSql);
 	if ($bRet == False) {
 		echo "<font color=red size=3><em>...Oops,  The query returned false</em></font>";
 	}
@@ -90,17 +52,19 @@ EOCAT;
 // ------------------------------------------
 // ------------------------------------------
 Function FTS_SearchForm ($aOptions) {
-	Global $objSFT;
-	
+	Global $objFTS;
+	Global $objQW;
+
 	$FTS_SearchForm = False;
 	$FTS_Criteria   = "";
+	$xURL = $objQW->config['QWSERVERURL'];
 
 	If (isset($_REQUEST['FTS_Criteria'])) $FTS_Criteria = $_REQUEST['FTS_Criteria'];
 	
-	echo <<<EOT
-		<form id=FTS_SearchForm action="Search.php">
+	echo <<<EOHERE
+		<form id=FTS_SearchForm action="$xURL">
+		<input type=hidden name='FTS_ENABLED' value='1'>
 		<table cellpadding=1 cellspacing=0>
-		<tr><td colspan=20 align=left><font size=4><b>Full Text Search Form</b></font></td></tr>
 		<tr>
 			<td align=right><font color=blue size=4><b>Criteria</b>:&nbsp;</font></td>
 			<td align=left><input type=text style="font-size: 14" size=40 name="FTS_Criteria" value="{$FTS_Criteria}" autofocus></td>
@@ -108,10 +72,10 @@ Function FTS_SearchForm ($aOptions) {
 			<td><input type=Submit value='Search'></td>
 			<td>
 				&nbsp;&nbsp
-				<font color=blue><em>e.g.: +Saved test ~Info* -BadWord</em></font>
+				<font color=blue><em>e.g.: "two words"  +Saved  test  ~Info*  -BadWord</em></font>
 			</td>
 		</tr>
-EOT;
+	EOHERE;
 	
 	// Disabled for now
 	$bFTSINSTANCES = False;
@@ -135,7 +99,7 @@ EOT;
 // ------------------------------------------
 
 Function FTS_SearchInstances ($aOptions) {
-	Global $objSFT;
+	Global $objFTS;
 	
 	$FTS_SearchInstances = False;
 	
@@ -143,17 +107,17 @@ Function FTS_SearchInstances ($aOptions) {
 		
 	// echo "<li><font size=2 color=maroon>" . $xSql . "</font></li><br>";
 	
-	$bRet = $objSFT->QueryDB($xSql);
+	$bRet = $objFTS->QueryDB($xSql);
 
 	if ($bRet == False) {
 		// echo "<font color=red size=3><em>...Oops,  The query did not return any results</em></font>";
 		return;
 	}
 
-	mysqli_data_seek($objSFT->QueryResults,0);
+	mysqli_data_seek($objFTS->QueryResults,0);
 	echo "<select name='FTS_INSTANCE'>\n";
 	echo "<option value=''>All Instances</option>\n";
-	while($row = mysqli_fetch_array($objSFT->QueryResults)) {
+	while($row = mysqli_fetch_array($objFTS->QueryResults)) {
 		$xInstance = $row["instance"];
 		// echo "<li>...Instance:  $xInstance</li>";
 		echo "<option value='" . $xInstance . "'>" . $xInstance . "</option>\n";
@@ -172,7 +136,8 @@ Function FTS_SearchInstances ($aOptions) {
 // ------------------------------------------
 
 Function FTS_SearchExecute ($aOptions) {
-	Global $objSFT;
+	Global $objFTS;
+	Global $objQW;
 	
 	$FTS_SearchExecute = False;
 	
@@ -183,8 +148,8 @@ Function FTS_SearchExecute ($aOptions) {
 
 	if (IsSet($_REQUEST['query'])) $FTS_Criteria = $_REQUEST['query'];
 	
-	// -----------------------------------------------------------------
-	// -----------------------------------------------------------------
+	// ------------------------
+	// ------------------------
 	$FTS_INSTANCE          = "";
 	$FST_INSTANCE_CRITERIA = "";
 	If (isset($_REQUEST['FTS_INSTANCE'])) {
@@ -194,34 +159,54 @@ Function FTS_SearchExecute ($aOptions) {
 		}
 	}
 	
-	// -----------------------------------------------------------------
+	// ------------------------
 	// https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
 	// https://www.mysqltutorial.org/mysql-full-text-search/mysql-match-against/
-	// -----------------------------------------------------------------
+	// ------------------------
 	
 	$xMode  = " IN BOOLEAN MODE ";
 
 	// Default mode defined here for clarity
 	//$xMode  = " IN NATURAL LANGUAGE MODE ";
 		
-	$xSql = "SELECT *, MATCH(title, body) AGAINST ('" . $FTS_Criteria . "'" . $xMode . ") AS Score FROM searchfulltext WHERE MATCH(title, body) AGAINST('" . $FTS_Criteria . "'" . $xMode . ") " . $FST_INSTANCE_CRITERIA . " ORDER BY  Score DESC LIMIT 50;";
+	$xFields = "app,instance,server,dateupdated,url,title,left(body,512) AS body,id,pkey";
+	$xSql = "SELECT $xFields, MATCH(title, body) AGAINST ('" . $FTS_Criteria . "'" . $xMode . ") AS Score FROM searchfulltext" .
+		" WHERE MATCH(title, body) AGAINST('" . $FTS_Criteria . "'" . $xMode . ") " . $FST_INSTANCE_CRITERIA .
+		" ORDER BY  Score DESC LIMIT 50;";
 				
 	echo "<li><font size=2 color=maroon>" . $xSql . "</font></li><br>";
 		
-	$bRet = $objSFT->QueryDB($xSql);
+	$bRet = $objFTS->QueryDB($xSql);
 
 	if ($bRet == False) {
 		echo "<font color=red size=3><em>...Oops,  The query did not return any results</em></font>";
 		return;
 	}
-	
+
 	echo <<<EOCAT
 		<style>
-		table {
-			font-size: 13px
+		table.search_results {
+			font-size: 13px;
+			background-color: #FFFFee;
+			border-spacing: 0px;
+			border-style: solid;
+			border-width: 2px;
+			padding: 0px;
 		}
-		td {
-			vertical-align:top;
+		table.search_results td {
+			vertical-align: top;
+			border-spacing: 0px;
+			border-style: solid;
+			border-width: 1px;
+			padding: 1px;
+			word-wrap: break-word
+		}
+		table.search_results th {
+			white-space: nowrap;
+			border-style: solid;
+			border-spacing: 0px;
+			border-width: 1px;
+			padding: 1px;
 		}
 		</style>
 	EOCAT;
@@ -230,77 +215,60 @@ Function FTS_SearchExecute ($aOptions) {
 
 	# ------------------------------------------------------------
 	# ------------------------------------------------------------
-	echo "<table border=1 cellpadding=1 cellspacing=0 bgcolor='FFFFee'>\n";
+	echo "<table class=search_results>\n";
 
-	// "<th>Folder Path</th>" .
 	echo "<tr bgcolor='FFFFAA'>" .
 		"<th align=left>Appliction<br>Instance<br>Server</th>" .
 		"<th align=left>Score<br>Last Updated</th>" .
-		"<th>Text<br><em><small><font color=Maroon>(First 500 Characters)</font></small></em></th>" .
+		"<th>Text<br><em><small><font color=Maroon>(First 512 Characters)</font></small></em></th>" .
 		"<th>Admin</th>" .
 		"</tr>\n";
 			
-	mysqli_data_seek($objSFT->QueryResults,0);
-	while($row = mysqli_fetch_array($objSFT->QueryResults)) {
+	mysqli_data_seek($objFTS->QueryResults,0);
+	while($row = mysqli_fetch_array($objFTS->QueryResults)) {
 		
 		$xpkey = str_replace("\\","/",$row["pkey"]);
 		$xpkey = str_replace("/-Content.asp","",$xpkey);
 		$xapp  = str_replace("Qwiki","QWiki",$row["app"]);
 		
-
-		# ------------------------------------------------------------
-		# ------------------------------------------------------------
+		// ----------
 		echo "<tr>";
 		
-		// echo '<td>&nbsp;' . $row["id"]          . '</td>';
-		// echo '<td>&nbsp;' . $row["pkey"]        . '</td>';
-		// echo '<td>&nbsp;' . $row["title"]       . '</td>';
-		// echo '<td>&nbsp;' . $row["instance"]    . '</td>';
-		// echo '<td>&nbsp;' . $row["server"]      . '</td>';
-		// echo '<td>&nbsp;' . $row["url"]         . '</td>';
-
-		// ---------------------------------------------------
-		// ---------------------------------------------------
-		echo '<td>' .
+		// ----------
+		// ----------
+		echo '<td style="white-space: nowrap;">' .
 			$row["app"] .
 			"<br>" . $row["instance"] .
 			"<br>" . $row['server'] .
-			"</td>";
+			"</td>\n";
 
-		// ---------------------------------------------------
-		// ---------------------------------------------------
-		echo '<td>' .
+		// ----------
+		// ----------
+		echo '<td style="white-space: nowrap;">' .
 			sprintf("%.2f",$row["Score"]*100) .
-			"<br>" . $row["dateupdated"] .
-			"</td>";
-	
-		// ---------------------------------------------------
-		// ---------------------------------------------------
-		//echo '<td>';
-		//	echo "<a href='" . $row["url"] . "'>" . $row["title"] . "</a>";
-		//echo '</td>';
+			"<br>" . substr(strstr($row["dateupdated"]," "), 1);              // only print date
+			"</td>\n";
 		
-		// ---------------------------------------------------
+		// ----------
 		// Body
-		// ---------------------------------------------------
-		echo '<td>';
-		echo "<b><a href='" . $row["url"] . "'>" . $row["title"] . "</a></b><br>";
-		echo '<font size=2>' . 
-			substr($row["body"], 0, 512) .
-			'</font></td>';
+		// ----------
+		echo "<td style=\"word-wrap: break-word\">";
+		echo "<b><a href='" . $row["url"] . "'>" . $row["title"] . "</a></b>";
+		echo '<br><font size=2>' . $row["body"] . '</font>';
+		echo "</td>\n";
 		
 
-		// ---------------------------------------------------
+		// ----------
 		// id   == MySQL DB uniq row number
 		// pkey == Folder Path with trailing slash to content
 		//
 		// TODO:  Update with "admin" permissions authorized to delete and/or those who created page if possible
 		// TODO:  Should be encrypted
 		// TODO:  Should use JavaScript to "Ajax" submit request to prevent robots from deleting
-		// ---------------------------------------------------
-		echo '<td>';
-			echo "<a href='Search.php?cmdtype=Delete&id=" . URLEncode($row["id"]) . "&pkey=" . URLEncode($row["pkey"]) . "' title='Delete the reference to this record from the Search Full Text DB.  Select to delete references to folders that were manually deleted or moved to another folder. This process does NOT delete the file or folder, it only deletes references in the database.  These references are automatically recreated by Qwiki when users traverse them should they now reside in alternate locations.'>Delete</a>";
-		echo '</td>';
+		// ----------
+		echo "<td>";
+			echo "<a href='QW.php?FTS_ENABLED=1&cmdtype=Delete&id=" . URLEncode($row["id"]) . "&pkey=" . URLEncode($row["pkey"]) . "' title='Delete the reference to this record from the Search Full Text DB.  Select to delete references to folders that were manually deleted or moved to another folder. This process does NOT delete the file or folder, it only deletes references in the database.  These references are automatically recreated by Qwiki when users traverse them should they now reside in alternate locations.'>Delete</a>";
+		echo "</td>\n";
 		
 		echo "<tr>\n";
 	}
@@ -313,14 +281,12 @@ Function FTS_SearchExecute ($aOptions) {
 // START OF MAIN
 // ------------------------------------------
 
-$bRet = FTS_Header("");
-
 echo <<<EOCAT
 <br>
 <table width=800 bgcolor=eFFFFF border=1 cellpadding=2 cellspacing=0 style="font-size: 13px"><tr><td>
 The <b>Qwiki Full Text Search</b> application updates it's database as users view Qwiki or edit pages.
 When users manually install new files, modify or delete files and/or folders, or edit web pages the Qwiki search database 
-will only detect those changes after someone views that folder using the Qwiki web application.
+will detect those changes after someone views that folder using the Qwiki web application.
 A numerical <em>score</em> is calculated as the sorting key where higher matching results appear first.
 
 <ul>
@@ -329,21 +295,20 @@ A numerical <em>score</em> is calculated as the sorting key where higher matchin
 <li>Append a trailing: <b>*</b>, character to search for strings with <= 3 characters <em>e.g.:  MAS*</em></li>
 <li><a href='https://dev.mysql.com/doc/refman/5.7/en/fulltext-stopwords.html'>MySQL MyISAM Stop Keywords</a> are excluded during indexing or when contained in search criteria</li>
 </ul></td></tr></table>
-<br>
 EOCAT;
 
 $xCmdtype = "";
 If (IsSet($_REQUEST["cmdtype"])) $xCmdtype = $_REQUEST["cmdtype"];
 
-// ------------------------------------------------------
-// ------------------------------------------------------
+// -------------
+// -------------
 if (strcmp($xCmdtype,"Delete")===0) {
 	$bRet = FTS_SearchDelete("");
 	exit(0);
 }
 
-// ------------------------------------------------------
-// ------------------------------------------------------
+// -------------
+// -------------
 echo "<br>";
 $bRet = FTS_SearchForm("");
 

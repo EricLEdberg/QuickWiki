@@ -8,7 +8,8 @@ class QuickWiki {
     public $MyDebug;
     public $QWCONTENT;
     public $QWIFRAME;
-
+    public $HtmlheaderEnabled;
+    
     // -----------------------------------------------------------------------------
     // -----------------------------------------------------------------------------
     public function __construct(&$aConfig) {
@@ -17,7 +18,7 @@ class QuickWiki {
         $this->config            = &$aConfig;                 // QW.php and clsQWiki.php "config" are one and the same.  Changes here apply to QW.php too.
         $this->config['folders'] = null;
         $this->config['files']   = null;
-        $this->HtmlheaderEnabled = False;
+        $this->HtmlheaderEnabled = false;
         $this->QWCONTENT         = null;                       // when .QWContent.php is evaluated run-time, it's output is saved to:  $this->QWCONTENT
         $this->QWIFRAME          = null;                       // when index.htm* is evaluated at run-time. it's output is saved to:   $this->QWIFRAME
         
@@ -30,18 +31,22 @@ class QuickWiki {
         global $objENC;   
 
         //if ($this->MyDebug) {
-            echo '<div id=qwdebug style="display: none;"><br><br><hr><h2 class=info>Qwiki Debug</h2>';
-            //$this->dump($_REQUEST);
-            echo "<h3 class=info>config</h3>";
-            $this->dump($this->config);
-            echo "<h3 class=info>_REQUEST</h3>";
-            $this->dump($_REQUEST);
-            echo "<h3 class=info>_SESSION</h3>";
-            $this->dump($_SESSION);
-            //echo "<h3 class=info>_SERVER</h3>";
-            //$this->dump($_SERVER);
-            //phpinfo();
-            echo "</div>";
+        
+        $dbgText  = "<h3 class=info>config</h3>";
+        //$dbgText .= $this->dump($this->config);
+
+        echo '<div id=qwdebug style="display: none;"><br><br><hr><h2 class=info>Qwiki Debug</h2>';
+        //$this->dump($_REQUEST);
+        echo "<h3 class=info>config</h3>";
+        $this->dump($this->config);
+        echo "<h3 class=info>_REQUEST</h3>";
+        $this->dump($_REQUEST);
+        echo "<h3 class=info>_SESSION</h3>";
+        $this->dump($_SESSION);
+        //echo "<h3 class=info>_SERVER</h3>";
+        //$this->dump($_SERVER);
+        //phpinfo();
+        echo "</div>";
         //}
         
         // --------------------------------------------------------------------------------
@@ -54,7 +59,7 @@ class QuickWiki {
         }
     }
     
-    function dump($var) {
+    function dump($var, $toVar = false) {
         echo "<div class=dbg><pre>";
         print_r($var);
         echo "</pre></div>";
@@ -89,14 +94,19 @@ class QuickWiki {
         $this->config['folderSanitized'] = $this->sanitizeFolderPath($this->config['folder']);
         $this->config['realPath']        = realpath($this->config['folderPath']); 
         
-		if (!$this->config['realPath']) echo "<li>ERROR:  real path does not exist:  $this->config['realPath']</li>";
-
-        if (!is_dir($this->config['folderPath'])){
-            $this->dump($this->config);
-			echo "<font color=red>ERROR: the Qwiki folder does not exist. Get Help.</font>";
+		if (!is_dir($this->config['folderPath'])){
+            echo "<font color=red>ERROR: the Qwiki folder does not exist. Get Help.</font>";
 			die;
 		}
 		
+        if (!$this->config['realPath']) {
+            echo "<li>ERROR:  real path does not exist:  $this->config['realPath']</li>";
+            die;
+        }
+
+
+
+
         $this->config['folderTitle']  = str_replace($this->config['folderSep']," -> ",ltrim($this->config['folder'], $this->config['folderSep']));
 
         $this->deriveFolderParent($this->config['folderSanitized']);
@@ -116,6 +126,10 @@ class QuickWiki {
         $this->config['FOLDER']['permissions']     = substr(sprintf('%o', fileperms($this->config['realPath'])), -4);
         $this->config['FOLDER']['is_writable']     = is_writable($this->config['realPath']);
         $this->config['FOLDER']['dateLastModification'] = $this->config['FOLDER']['filemtime'];                       // may be updated if child file or folder was modified more recently
+
+        //$this->config['FOLDER']['permaLink']       = $this->config['QWPROGRAM'] . "?QWS=" . urlencode($this->config['QWS']) . "&QWI=" . urlencode($this->config['QWI']) . "&folder=" . urlencode($this->config['folderSanitized']);
+        $this->config['FOLDER']['permaLink']       = "QWS=" . urlencode($this->config['QWS']) . "&QWI=" . urlencode($this->config['QWI']) . "&folder=" . urlencode($this->config['folderSanitized']);
+        //echo "<li>TEST:  <a href='" . $xURL . "'>Test URL</a></li>";
      }
     
     // -----------------------------------------------------------------------------
@@ -171,13 +185,13 @@ class QuickWiki {
 		$xFolder = preg_replace('#/{2,}#', DIRECTORY_SEPARATOR, $xFolder);
 		$xFolder = preg_replace('#/{2,}#', '/', $xFolder);
 		
-		// remove leading slash is it exists
+		// remove leading slash if it exists
         // search expects a leading slash?  Will this break anything else?
 		// $xFolder = preg_replace('{^/*}','',$xFolder);
 
 		// If folder contains a parent folder reference immediately throw error as this should never-ever happen
 		if (strpos($xFolder, '..') !== false) {
-			echo "ERROR: folder path contains illegal characters, Get Help";
+			echo "ERROR 194: folder path contains illegal characters, Get Help";
 			die;
 		}
 		
@@ -188,11 +202,16 @@ class QuickWiki {
     // -----------------------------------------------------------------------------
    public function displayQwikiMain($aOptions) {
         
+        // INIT() is called on class instanciation for all cases.
+        // Why is this here a second time?  
+        // Possibly to support when pickqwiki() processes user choice which ma be different than what was previously chosen?
+        // -  If so, then INIT should be called by pickqwiki()
         $this->INIT(null);
+
         $this->scanFolderFiles(null);
         
-        // TODO:  possibly move $aFeatures definition into .QWconfig.json?
-        $aFeatures = array('displayPageOptions','displayFolders','displayFiles','displayContent','displayUrlInIframe','searchSubmitUpdates');  
+        // TODO:  Enable $aFeatures based on optioning?
+        $aFeatures = array('displayPageOptions','displayGrid','displayFolders','displayFiles','displayContent','displayUrlInIframe','searchSubmitUpdates');  
         
         foreach ($aFeatures as $xFeature) {
             $xOpt = null;
@@ -235,7 +254,46 @@ class QuickWiki {
 
         $items   = scandir($this->config['FOLDER']['realPath']);
         
+        // -----------------------------------------------------------------------------
+        // Detect if this folder contains files generated by jAlbum.
+        // If it was created by jalbum, "data1.json" contains metadata about what files should be displayed.
+        // Replace $items with only those files/folders specified in data1.json.
+        // TODO:  This process and any other jAlbum custom rules should be in a TBP clsJalbum class.  
+        // ----------------------------------------------------------------------------
+        $xFile = $this->config['FOLDER']['realPath'] . $this->config['folderSep'] . "data1.json";
+        if (file_exists($xFile)){
+            $this->config['jAlbumData1Arr'] = json_decode(file_get_contents($xFile), true);
+            if (!is_array($this->config['jAlbumData1Arr'])) {
+                echo "<li>ERROR:  jAlbum data1.json file exists but was not converted to a valid ARRAY: (" . $xFile . ")</li>";
+             } else {      
+                $items = [];
+                foreach ($this->config['jAlbumData1Arr']['objects'] as $obj) {
+                    $xItem = $this->config['FOLDER']['realPath'] . $this->config['folderSep'] . $obj['name'];            
+                    if (!file_exists($xItem) && !is_dir($xItem) ) {
+                        echo "<li>ERROR:  jAlbum data1.json object does not exist: (" . $xItem . ")</li>";
+                        continue;
+                    }
+                    array_push($items, $obj['name']);
+                }
+                $this->config['FEATURE']['GRID']  = true;
+                $this->config['FEATURE']['FILES'] = false;
+            }
+        }
+
+        # -----------------------------------------------------------------------------
+        # Automatically enable/toggle displayGrid() when folder name matches those that commonly store media.
+        # TODO:  Should be a function that can be called by multiple features, not just when scanning.
+        # TODO:  Upgrade folder path scan to support when specification includes multiple levels of folders.
+        # -----------------------------------------------------------------------------
+        $xbn = strtolower(basename($this->config['folder']));
+        if (in_array(strtolower($xbn), $this->config['GRID']['FolderNames'], true)) {
+            $this->config['FEATURE']['GRID']  = true;
+            $this->config['FEATURE']['FILES'] = false;
+        }
+
+
         foreach ($items as $item) {
+            
             $itemPath  = $this->config['FOLDER']['realPath'] . $this->config['folderSep'] . $item;
             $xFileTime = null;
 
@@ -245,27 +303,48 @@ class QuickWiki {
                     'realpath'    => realpath($itemPath),
                     'type'        => filetype($itemPath),
                     'filemtime'   => filemtime($itemPath),
+                    'created'     => date('Y-m-d H:i:s', filectime($itemPath)),
                     'modified'    => date('Y-m-d H:i:s', filemtime($itemPath)),
                     'size'        => filesize($itemPath),
                     'owner'       => fileowner(($itemPath)),                                // always returns zero on Windows because it does not support numeric user ids
                     'permissions' => substr(sprintf('%o', fileperms($itemPath)), -4),
-                    'is_writable' => is_writable($itemPath)
+                    'is_writable' => is_writable($itemPath),
                 ];
 
                 $xFileTime = filemtime($itemPath);
 
             } elseif (is_file($itemPath) && is_readable($itemPath) ) {
+                
+                // Determine if file is an image.  Needed by grid and content display modes.
+                // ERROR: getimagesize() does not work?
+                $xMimeType = mime_content_type($itemPath);
+                if (in_array($xMimeType, $this->config['IMAGES']['supported_types'], true)) {    
+                    $xIsImage = true;
+                } else {
+                    $xIsImage = false;
+                }
+
                 $this->config['files'][$item] = [
                     'name'        => $item,
                     'realpath'    => realpath($itemPath),
                     'type'        => filetype($itemPath),
                     'filemtime'   => filemtime($itemPath),
                     'modified'    => date('Y-m-d H:i:s', filemtime($itemPath)),
+                    'created'     => date('Y-m-d H:i:s', filectime($itemPath)),
                     'owner'       => fileowner(($itemPath)),                                // always returns zero on Windows because it does not support numeric user ids
                     'permissions' => substr(sprintf('%o', fileperms($itemPath)), -4),
                     'size'        => filesize($itemPath),
-                    'is_writable' => is_writable($itemPath)
+                    'is_writable' => is_writable($itemPath),
+                    'mimeType'    => mime_content_type($itemPath),
+                    'is_image'    => $xIsImage
                 ];
+
+                # Add parameters based on file mime type
+                if ($this->gridOptions($this->config['files'][$item])) {
+                    // $this->dump($this->config['files'][$item]);
+                };
+
+      
 
                 $xFileTime = filemtime($itemPath);
             }
@@ -273,7 +352,7 @@ class QuickWiki {
 
             // TODO:  xKey is constructed in multiple places.  Should be defined in 1 common location.
             // See:   $this->searchSubmitUpdates()
-            if (!is_null($xFileTime) && is_array($_SESSION['QWFTSUPDATES'])) {
+            if (!is_null($xFileTime) && isset($_SESSION['QWFTSUPDATES']) && is_array($_SESSION['QWFTSUPDATES'])) {
                 $xKey = $this->config['QWI'] . ":/" . str_replace("\\","/",ltrim($this->config['folder']));
                 if ( array_key_exists($xKey, $_SESSION['QWFTSUPDATES'])) {
                     $iVal = (int) $_SESSION['QWFTSUPDATES'][$xKey];
@@ -283,13 +362,11 @@ class QuickWiki {
                     }
                 }
             }
-
+            
             if ($xFileTime > $this->config['FOLDER']['dateLastModification']) $this->config['FOLDER']['dateLastModification'] = $xFileTime;
 
-        }
+        }       
 
-
-        
         // Sort files and folders case insensitive
         // https://www.php.net/manual/en/function.ksort.php
         // https://brainbell.com/php/sorting-nested-arrays.html
@@ -322,7 +399,7 @@ class QuickWiki {
         echo "<table class=vs width='100%'><tr>";
 
         // -------------------------------------------------
-        // QW HOME
+        // QW Application Home Folder
         // -------------------------------------------------
         echo '<td align=center style="width: 1%; white-space: nowrap;">' .
             '<a href="' . $this->config['QWSERVERURL'] . '" title="Qwiki Home">' . 
@@ -376,8 +453,10 @@ class QuickWiki {
         // SEARCH
         // -------------------------------------------------
         if ($this->config['FEATURE']['SEARCH'] ) {
+            $xSearchOpt = "FTS_ENABLED=1";
+            $xSearchOpt = $this->objENC->encryptData($xSearchOpt);
             echo '<td align=center style="width: 1%; white-space: nowrap;">' .
-                '<a href="'  . $this->config['QWURL'] . '/Search.php' . '">' .
+                '<a href="'  . $this->config['QWURL'] . '/QW.php?' . $xSearchOpt . '">' .
                 '<img src="' . $this->config['QWURL'] . '/Images/Icon_FolderSearch.jpg" border=0 height=30>' .
                 '<br><span class=comment>Search</span></a>' .
                 '</td>';
@@ -422,6 +501,11 @@ class QuickWiki {
             '<br><span class=comment>Back</span></a>' .
             '</td>';
         
+        // -------------------------------------- ---------
+        // Show development/test options
+        // This function includes testing for opening a debug window and writing messages to it from the parent window.  Not fully implemented yet.
+        // -------------------------------------------------
+        // $this->ShowDevOptions(null);
 
         // -------------------------------------------------
         // FOLDER TITLE
@@ -466,6 +550,71 @@ class QuickWiki {
     }
     
     // ----------------------------------------------------------------------
+    // QWiki Debugging Test 
+    // Not fully implemented yet.  Can open window....  Need to be able to write debug messages when page load terminates
+	// ----------------------------------------------------------------------
+	public function ShowDevOptions($aOptions) {
+
+        echo <<< EOHERE
+            <td align=center ite-space: nowrap;">
+            <script>
+    
+            var QWwindowName         = "QWwindowName";
+            window.windowParent      = window;
+            window.name              = QWwindowName;
+    
+            var windowDebugName      = "QWwindowDebugName";
+            window.windowDebug       = null;
+            window.windowDebugName   = windowDebugName;
+    
+            function openDebugWindow (xUrl, xTarget, xFeatures) {
+                if ( typeof(window.windowDebug) !== "undefined" && window.windowDebug !== null ) return;
+                window.windowDebug   = window.open(xUrl,xTarget,xFeatures);
+                window.windowDebug.addEventListener('load', window.debugWindowLoaded, true); 
+            };
+            function debugWindowLoaded() {
+                window.windowDebug.name         = windowDebugName;
+                window.windowDebug.windowParent = window.windowParent;   // Verify this passes parent window to debug window ?????
+                window.windowDebug.document.getElementById('debugWindowText').innerHTML += "<li>...Qwiki debugging enabled</li>";
+                window.focus();
+            };
+            function debugWindowClose() {
+                if (window.windowDebug != null) window.windowDebug.close();
+                window.windowDebug = null;
+            };
+            function debugWindowText(xText) {
+                if (window.windowDebug != null) {
+                    window.windowDebug.document.getElementById('debugWindowText').innerHTML += xText;
+                };
+            };
+    
+            // Close debug window which is  bound to the currently running Qwiki browser instance
+            // GAK:  onbeforeunload executes when page is reloaded/refreshed too, not just when the page instance terminates
+            // window.onbeforeunload = debugWindowClose;
+    
+            window.onload = function () { 
+                debugWindowText('<h2>QWiki Window Completed Loading</h2>');
+            }
+    
+            // If needed, this is how to open the debug window on-load...
+            // openDebugWindow('https://susiepc/QWiki/QW/QWDebug.php','_QWdebug','width=1200,height=200');
+    
+            </script>
+    
+            <div class=debugWindow>
+            <button onclick="openDebugWindow('https://susiepc/QWiki/QW/QWDebug.php','_QWdebug','width=1200,height=200');">Enable<br>Debugging</button>
+            &nbsp;
+            <button onclick="debugWindowText('<li>This is additional debug text</li>');">Append<br>Text</button>
+            &nbsp;
+            <button onclick="debugWindowClose();">Close Debug<br>Window</button>
+            </td>
+        
+        EOHERE;
+            
+    }
+        
+    
+    // ----------------------------------------------------------------------
 	// ----------------------------------------------------------------------
 	public function nav_profile($aOptions) {
         $QWURL = $this->config['QWURL'];
@@ -475,9 +624,11 @@ class QuickWiki {
     // ----------------------------------------------------------------------
 	// ----------------------------------------------------------------------
 	public function nav_menu($aOptions) {
-        $QWURL = $this->config['QWURL'];
-        $qwHP  = $this->config['QWSERVERURL'];
-        $qwD   = $this->config['QWSERVERURL'] . "?ChooseQwiki=1";
+        $QWURL  = $this->config['QWURL'];
+        $qwHP   = $this->config['QWSERVERURL'];
+        $qwD    = $this->config['QWSERVERURL'] . "?ChooseQwiki=1";
+        $qwPURL = $this->config['QWSERVERURL'] . "?" . $this->config['FOLDER']['permaLink'];
+        
         echo <<<EOHERE
         <style>
           .menu-popup {
@@ -509,12 +660,13 @@ class QuickWiki {
         <div id="menuPopup" class="menu-popup" onmouseleave="hideMenuPopup()">
         <a href="#" onclick="openURL('$qwHP','_self')">Qwiki Home Page</a>
         <a href="#" onclick="openURL('$qwD','_self')">Select a Different Qwiki</a>
-          <a href="#" onclick="showDebugWindow('qwdebug'); return false;">Qwiki Debugging Info</a>
-          <a href="#" onclick="openURL('https://github.com/ericledberg','_blank')">Qwiki GitHub</a>
+          <!-- <a href="#" onclick="showDebugWindow('qwdebug'); return false;">Qwiki Debugging Info</a> -->
           <a href="#" onclick="changeFontSize('increase')">Increase Font Size</a>
           <a href="#" onclick="changeFontSize('decrease')">Decrease Font Size</a>
+          <a href="#" onClick="copyToClipboard('$qwPURL'); alert('The PermaLink URL of this file was copied to the browser clippad: $qwPURL');">Copy PermaLink to Clipboard</a>
+          <a href="#" onclick="openURL('https://github.com/ericledberg','_blank')">Qwiki GitHub</a>
         </div>
-        
+
         <script>
         function showMenuPopup(event) {
           event.preventDefault();
@@ -554,14 +706,161 @@ class QuickWiki {
         EOHERE;
     }
 
-        // -----------------------------------------------------------------------------
+    // --------------------------------------------\
+    // Resolve ICON to display for various file types.
+    // Defaults to a generic file icon.
+    // --------------------------------------------
+    
+    var $gaFileTypes = null;
+    private function gridOptions(&$file) {
+
+        if (is_null($this->gaFileTypes)) {
+            $this->gaFileTypes = $this->config['FILETYPES']['type'];
+        }
+        if (!is_array($this->gaFileTypes)) return false;
+
+        # Derive file extension using trailing .xxx and mime type.  
+        # Always use mime type as primary since file extensions can be spoofed/manipulated
+        # Default to a generic file icon
+
+        $xExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
+
+        $xMimeType = "";
+        if (array_key_exists('mimeType',$file)) {
+            $xMimeType = $file['mimeType'];
+            $xMimeType = explode('/',$xMimeType)[1];
+        }
+        
+        foreach ($this->gaFileTypes as $aTypes) {
+            $curName = null;
+            $curIcon = null;
+            $curMimeType = null;
+            if (array_key_exists('_name',$aTypes))     $curName = $aTypes['_name'];
+            if (array_key_exists('_icon',$aTypes))     $curIcon = $aTypes['_icon'];
+            if (array_key_exists('_mimeType',$aTypes)) $curMimeType = $aTypes['_mimeType'];
+            
+            if (!is_array($aTypes['ext'])) {
+                echo "<li>gridOptions:  ERROR: ext is not an array</li>";
+                continue;   
+            }       
+
+            $xCnt    = 0;
+            $xCntMax = count($aTypes['ext']);
+
+            while ($xCnt<$xCntMax) {
+                $xExt = $aTypes['ext'][$xCnt];
+                
+                $xDoit = false;
+                if (strcmp($xMimeType,$xExt)==0) {
+                    $xDoit = true;
+                } else if (strcmp($xExtension,$xExt)==0) {
+                    $xDoit = true;
+                }
+                
+                if ($xDoit) {
+                    if (is_null($curIcon)) {
+                        // echo "<li>gridOptions:  INFO: file: " . $file['name'] . ", xMimeType: $xMimeType, icon not defined</li>";
+                        break;   
+                    }
+                    $file['gridIcon'] = $curIcon;
+                    //echo "<li>gridOptions:  MATCH FOUND!  xMimeType: $xMimeType, xExt: $xExt, xIcon: $curIcon</li>";
+                    return true;
+                 }
+
+                $xCnt = $xCnt + 1;
+            }
+        }
+
+        # TODO:  should initialize a default generic file icon in the config and assign it here if no match is found.  For now, just return false and display file name without an icon.
+
+        return false;
+    }
+    
+    // --------------------------------------------
+    // Display folder content in a grid format.  This alternative view shows visual thumbnails for images and files.  
+    // Grid view is better at browsing images stored in a folder.
+    // ISSUE:  current method does not support pagnation (ignores xMaxRows) and displays all items on single page.
+    // --------------------------------------------
+    private function displayGrid() { 
+
+        if (!$this->config['FEATURE']['GRID']) return true;
+
+        echo '<h2>Files</h2>';
+     
+        if (!is_array($this->config['files'])) return true;
+        
+        $xMaxColumns = $this->config['GRID']['colsPerPage'];         // max number of columns before starting a new row
+        $xMaxRows    = $this->config['GRID']['rowsPerPage'];         // max number of rows per ctable before starting a new page
+        
+        $xCurRow  = 0;             // current number of folders printed in a column
+        $xCurCell = 0;            // current number of folders printed in a column
+        $xHead    = true;
+        
+        
+        $xHeadTxt = "<div class=qwgridcontainer>";
+        $xHeadTxt = $xHeadTxt . '<table class=qwgrid border=0 cellpadding=0 cellspacing=0 bgcolor="#ffffe6"><tr>';
+
+        foreach ($this->config['files'] as $file) {
+
+            $aOptions['fileName']    = $file['name'];
+            $aOptions['displayMode'] = "fileGrid";               # display images and files in a grid
+            
+            # Only display authorized files
+            if (!$this->isFileMatched($aOptions)) continue;       
+           
+            if ($xHead){
+                echo $xHeadTxt;
+                $xHead = false;
+            }
+
+            echo "<td align=center valign=middle style='white-space: nowrap; padding-top: 3px; padding-bottom: 3px; padding-left: 3px; padding-right: 3px;'>";
+
+            # TODO:  URL to each itme should be encoded/obfuscated to prevent user from directly accessing file outside of Qwiki interface
+            if (array_key_exists('gridIcon',$file) && !is_null($file['gridIcon'])) {
+                $xURL = $this->config['rootURL'] . $this->config['folder'] . $this->config['folderSep'] . $file['name'];
+                echo "<a href='$xURL'><img src='" . $this->config['QWURL'] . "/Images/" . $file['gridIcon'] . "' border=0 style='max-width: 75px; max-height: 75px;'>";
+                echo "<br><small>" . $file['name'] . "</small></a>";
+
+            } else if ($file['is_image']===true) {
+                $xURL = $this->config['rootURL'] . $this->config['folder'] . $this->config['folderSep'] . $file['name'];
+                echo "<a href='$xURL'><img src='$xURL' border=0 style='max-width: 75px; max-height: 75px;'>";
+                echo "<br><small>" . $file['name'] . "</small></a>";
+            } else {
+                # TODO:  add default icon
+                echo $file['name'];
+            }
+            echo "</td>";
+            
+            $xCurCell = $xCurCell + 1;
+            if ($xCurCell>=$xMaxColumns) {
+                echo "</tr><tr>";
+                $xCurCell = 0;
+            }
+        }
+        # If something was display pad out the end of the row and close the table
+        if (!$xHead) {
+            while ($xCurCell>0 && $xCurCell<$xMaxColumns) {
+                echo "<td>&nbsp;</td>";
+                $xCurCell = $xCurCell + 1;
+            }
+            echo "</tr></table>";
+            echo "</div>";
+        }
+
+        return true;
+    }
+
+    // -----------------------------------------------------------------------------
     // -----------------------------------------------------------------------------
     private function displayFiles($aOptions) {
         global $objENC;
 
+        if (!$this->config['FEATURE']['FILES']) return true;
+
         if (!is_array($this->config['files'])) return true;
         
-        $xHead = <<<EOHERE
+        $xHead    = true;
+        $xHeadTxt = <<<EOHERE
         <h2>Files</h2>
         <table border=1 cellpadding=4 cellspacing=0>
         <tr>
@@ -577,9 +876,9 @@ class QuickWiki {
             $aOptions['fileName'] = $file['name'];
 
             if ($this->isFileMatched($aOptions)) {
-                if (!is_null($xHead)){
-                    echo $xHead;
-                    $xHead = null;
+                if ($xHead){
+                    echo $xHeadTxt;
+                    $xHead = false;
                 }
                 $xfURL  = $this->config['rootURL']  . $this->config['folder'] . $this->config['folderSep'] . $file['name'];
                 $xfPath = $this->config['rootPath'] . $this->config['folder'] . $this->config['folderSep'] . $file['name'];
@@ -602,7 +901,9 @@ class QuickWiki {
 
             }
         }
-        echo "</table>" . "\n";
+        if (!$xHead) {
+            echo "</table>" . "\n";
+        }
     }
     
     // --------------------------------------------
@@ -610,6 +911,8 @@ class QuickWiki {
     // --------------------------------------------
     private function displayFolders() { 
         
+        if (!$this->config['FEATURE']['FOLDERS']) return true;
+
         $xCurCnt     = 0;             // current number of folders printed in a column
         $xMaxCnt     = 0;             // Max number of folder names listed in a column
 
@@ -736,6 +1039,13 @@ class QuickWiki {
     }
     
     // -----------------------------------------------------------------------------
+    // Load URL in and IFrame
+    // Method 1:   Program the client to load the URL
+    // Method 2:   Have the server load the URL and dump it to the client
+    // ISSUE:      FTS can build an index of the contents of the URL using Method #2, but can't using Method 1.
+    //             For now, always use method 2 which will index and update the FTS search database with URL contents
+    //             ==> similar to how QW loads QWCONTENT (the text entered in the QW editor)
+    //
     // TODO:  check for different allowed file names and case issues
     // currently supports:  index.html, index.htm
     // -----------------------------------------------------------------------------
@@ -754,16 +1064,23 @@ class QuickWiki {
         
         $xURL = $this->config['rootURL'] . str_replace("\\","/",$this->config['folderSanitized']) . "/" . $xFile;
         
+        // ------------------------------------------------------------------------
+        // Method 2:  server loads the URL and indexes it's content into the FTS search database
         // ISSUE:  we cannot index contents for FTS search database when it is loaded by the client.
-        // KLUDGE: load page similar to QWCONTENT in test mode until solution is found.
-        if (1) {
+        // ELE ISSUE:  clarify what postFields, and cookies are requireda and why they are commented out here?
+        // ------------------------------------------------------------------------
+        if (0) {
             $curlMethod       = 'GET';
+            $postFields       = "";
+            $cookies          = "";
             //$postFields     = ['param1' => 'value1', 'param2' => 'value2'];
             //$cookies        = ['cookie1' => 'value1', 'cookie2' => 'value2'];
             $this->QWIFRAME   = $this->submitCurlRequest($xURL, $curlMethod, $postFields, $cookies);
         }
 
-        // default is to have client load this page
+        // ------------------------------------------------------------------------
+        // Method #1:  client is programmed using JS to load the URL in an IFrame
+        // ------------------------------------------------------------------------
         $aOptions                       = array();
         $aOptions['url']                = $xURL;
         $aOptions['initial_width']      = '800px';
@@ -772,6 +1089,14 @@ class QuickWiki {
         echo $this->generate_webpage_iframe($aOptions);
     }
 
+    // -----------------------------------------------------------------------------
+    // Determine if a file name is should be displayed by qw or if should be excluded
+    // return true or false
+    // -----------------------------------------------------------------------------
+    public function isFileImage($aOptions) { 
+        
+        return false;
+    }
     // -----------------------------------------------------------------------------
     // Determine if a file name is should be displayed by qw or if should be excluded
     // return true or false
@@ -900,6 +1225,8 @@ class QuickWiki {
     public function generate_webpage_iframe($aOptions) {
 
         $src = htmlspecialchars($aOptions['url']);
+
+//        $this->dump($src);
 
         // example iframe definition from ASP qwiki
         // Response.Write "<a href=""#"" onclick=""document.getElementById('iFrame').contentDocument.location.reload(true); return false;"" 
@@ -1052,8 +1379,6 @@ class QuickWiki {
     // TODO:  Need to support SSL certificate verification which is disabled below
     // -----------------------------------------------------------------------------
     public function submitCurlRequest($url, $method = 'GET', $postFields = [], $cookies = []) {
-        //echo "<li>url: $url</li>";
-        //echo "<li>method: $method</li>";
         
         $ch = curl_init();
 
@@ -1207,13 +1532,14 @@ class QuickWiki {
             // key does not exist so force FTS indexing...
             $this->config['FTS']['FORCEUPDATE'] = true;
         }
+$this->config['FTS']['FORCEUPDATE'] = true;
 
         // Were any FILES or child FOLDERs updated?
         // See:  scanFolderFiles() which initializes:  folders and files lists, and check this case
 
         // Was QW content updated?
         $xFileName = $this->config['realPath'] . $this->config['folderSep'] . $this->config['contentFileName'];           
-        if (file_exists($xFileName)) {            
+        if (file_exists($xFileName) && isset($_SESSION['QWFTSUPDATES'][$xKey])) {            
             if (filemtime($xFileName) > $_SESSION['QWFTSUPDATES'][$xKey]) {
                 $this->config['FTS']['FORCEUPDATE'] = true;
             }
@@ -1280,7 +1606,7 @@ class QuickWiki {
         // -  Including a trailing slash is a requirement to terminate the folder path  
         // See:  clsFullTextSearch.php->InsertDB() DKEYS processing.                                                     // folder relative to root of this Qwiki instance
         $this->config['FTS']['PKEY']          = $this->config['folderSanitized'];
-        $this->config['FTS']['PKEY']         .= $this->config['folderSep'];                                                      // FTS requires a trailing slash for folders
+        $this->config['FTS']['PKEY']         .= $this->config['folderSep'];                                              // FTS requires a trailing slash for folders
 
         // construct sub-folder(s) pkey.
         // Assumptions:   "folders" does not contain a trailing slash
@@ -1299,13 +1625,11 @@ class QuickWiki {
         // If JS method was used within the client browser to load QWCONTENT then QW does not know what it is; FTS cannot index it
         // If CURL or FILEGETCONTENTS methods loaded QWCONTENT at run-time, strip out html, images, etc, that should not be indexed and append to BODY
         if (!is_null($this->QWCONTENT)) {
-            require_once('./clsHmtlToText.php');
             $this->FTS_BODY .= gfHtml2Text($this->QWCONTENT);
         }
 
-        // If a web page exists and it was loaded at run time strip and append to BODY similar to QWCONTENT
+        // If a web page was loaded by QW using curl or another mean load the returned web data into the QW iFrame       
         if (!is_null($this->QWIFRAME)) {
-            require_once('./clsHmtlToText.php');
             $this->FTS_BODY .= gfHtml2Text($this->QWIFRAME);
         }
 
@@ -1317,6 +1641,107 @@ class QuickWiki {
     }
 
 
+}
+
+// ------------------------------------------------------------
+// Convert an HTML document to TEXT   (used by Full Text Search when indexing web page)
+// Algorithm is not 100% correct but does well enough.
+//
+// http://www.codeproject.com/Articles/639/Removing-HTML-from-the-text-in-ASP
+// https://gist.github.com/gwobcke/1027133
+// http://www.barattalo.it/asp/asp-strip-tags-function-equivalent-to-php/
+// http://forums.devshed.com/asp-programming-51/regex-remove-ascii-characters-string-395202.html
+// https://snipplr.com/view/8404/how-to-strip-html-tags-scripts-and-styles-from-a-web-page
+//
+// ELE - 9/2016     Wrote original ASP version
+// ELE - 4/24       Ported to PHP and added some methods
+// ------------------------------------------------------------
+function gfHtml2Text($xStr) {
+	$i = 0;
+    
+	if ( is_null($xStr) || (strcmp($xStr,"")==0) ) {
+		return $xStr;
+  }
+
+    // remove everything between open/close tag including everything between the tags
+    // Cannot use this....  It deletes evrything between <html></html> or body, etc...
+    // $xPattern    = '/(<.*>.+?)+(<\/.*>)/i';
+    // $xStr        = preg_replace($xPattern, '', $xStr);
+    
+
+    // Have not verified what this actually removes.  Will have to further validate PHP BODY content
+    // ISSUE-1:  when processing an Email that was saved as index.html, it deleted the entire contents of the html-formatted email.
+    // Commented out until additional testing can commence.
+    $xStr2 = preg_replace(
+        array(
+          // Remove invisible content
+            '@<head[^>]*?>.*?</head>@siu',
+            '@<style[^>]*?>.*?</style>@siu',
+            '@<script[^>]*?.*?</script>@siu',
+            '@<object[^>]*?.*?</object>@siu',
+            '@<embed[^>]*?.*?</embed>@siu',
+            '@<applet[^>]*?.*?</applet>@siu',
+            '@<noframes[^>]*?.*?</noframes>@siu',
+            '@<noscript[^>]*?.*?</noscript>@siu',
+            '@<noembed[^>]*?.*?</noembed>@siu',
+          // Add line breaks before and after blocks
+            '@</?((address)|(blockquote)|(center)|(del))@iu',
+            '@</?((div)|(h[1-9])|(ins)|(isindex)|(p)|(pre))@iu',
+            '@</?((dir)|(dl)|(dt)|(dd)|(li)|(menu)|(ol)|(ul))@iu',
+            '@</?((table)|(th)|(td)|(caption))@iu',
+            '@</?((form)|(button)|(fieldset)|(legend)|(input))@iu',
+            '@</?((label)|(select)|(optgroup)|(option)|(textarea))@iu',
+            '@</?((frameset)|(frame)|(iframe))@iu',
+        ),
+        array(
+            ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+            "\n\$0", "\n\$0", "\n\$0", "\n\$0", "\n\$0", "\n\$0",
+            "\n\$0", "\n\$0",
+        ),
+        $xStr );
+
+
+    // Remove images including embedded image data (see .QWContent.php when users paste images into the editor)
+    // Must be before strip_tags()
+    $xPattern    = '/(<img>.+?)+(<\/img>)/i';
+    $xStr        = preg_replace($xPattern, '', $xStr);
+    
+    // https://www.php.net/manual/en/function.strip-tags.php
+    // This leaves all text between the tags
+    $xStr        = strip_tags($xStr);
+    
+    // replace text backslash characters (not rendered)
+    $xPattern    = '[\\\\n|\\\\t|\\\\r|\\\\v|\\\\f|\\\\b]';
+    if (!is_null($xStr)) $xStr        = preg_replace($xPattern," ",$xStr);
+
+    // Replace HTML special characters.
+    $xPattern    = "'&[a-zA-Z]{4};'";
+    if (!is_null($xStr)) $xStr        = preg_replace($xPattern," ",$xStr);
+    
+    // strip some non-ascii characters
+    $xPattern    = "/^\x20-\x7E/";
+    if (!is_null($xStr)) $xStr        = preg_replace($xPattern," ",$xStr);
+    
+    // remove other non-ascii characters (this seems to work better that above)
+    // https://stackoverflow.com/questions/8781911/remove-non-ascii-characters-from-string
+    // This DOES NOT WORK PROPERLY.  It concatenates subsqquent lines together without spaces which messes up meta-character search expectations
+    //    $xStr = preg_replace('/[[:^print:]]/', '', $xStr);
+    
+    // Don't know what this does :-(  It was in the original ASP version so just keep it.
+    // Possibly remove 1 or more newlines?
+    $xPattern    = "[<(.|\n)+?>]";;
+    if (!is_null($xStr)) $xStr        = preg_replace($xPattern," ",$xStr);
+    
+    // Untested - Remove HTML Tags (from php preg_replace manual in the comments section)
+    // $string      = preg_replace ('/<[^>]*>/', ' ', $string); 
+    $xPattern    = "'/<[^>]*>/'";;
+    if (!is_null($xStr)) $xStr        = preg_replace($xPattern," ",$xStr);
+    
+    // LAST replace 1-or-more spaces with 1 space
+    $xPattern    = "[\s{2,}]";
+    if (!is_null($xStr)) $xStr        = preg_replace($xPattern," ",$xStr);
+	
+	return $xStr;
 }
 
 ?>

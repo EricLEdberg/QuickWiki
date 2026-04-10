@@ -1,42 +1,17 @@
 <?php
-// --------------------------------------
-// ISSUE:  user executes QW.php to present editor form BUT
-//         submits directly to Editor.php
-//         GAK:  submit to QW.php
-// --------------------------------------
 
-// This URL does not work on EdbergNet as WordPress messes with parser.
-// Need to derive full URL
-$SubmitAction  = "/Qwiki/QW/Editor.php";
-$EditorText    = null;
-
-// --------------------------------------------------------------------
-// --------------------------------------------------------------------
-if (is_object($objQW)) {
-	$EditorFile                = $config['rootPath'] . $config['Options']['EditorFile'];
-	$SubmitAction              = $config['QWURL'] . "/" . $config['QWPROGRAM'];
-} else {
-	$EditorFile                = $_REQUEST["EditorFile"];
-}
-
-// If EditorText exists as a _REQUEST, then user submitted editor form
-// EditorFile should be an encrypted QW "Option"...
-$bEditorSubmitted = false;
-if (isset($_REQUEST["EditorText"])){
+// ----------------------------------------------------------
+// If EditorSubmitForm exists as a _REQUEST then user submitted editor form
+// Update file contents and reload parent page to show updated content
+// ISSUE/TODO:    all query string options should be encrypted (see $config['Options']) like other feature options parsed at runtime
+// ----------------------------------------------------------
+if (isset($_REQUEST["EditorSubmitForm"])){
+	
 	$EditorText       = $_REQUEST["EditorText"];
 	$EditorFile       = $_REQUEST['EditorFile'];
-	$bEditorSubmitted = true;
-} else {
-	$EditorText = "<em>Input updated text here</em>";
-}
 
-// ----------------------------------------------------------
-// Editor form submitted, update file contents and reload parent page with updated content
-// ----------------------------------------------------------
-if ($bEditorSubmitted) {
-
-	// TODO:  validate EditorText is valid?
-	// This is troubling as QW allows .PHP or other types of code...
+	// TODO:  possibly validate EditorText is valid
+	// This is difficult as user is currently allowed to input .PHP code
 
 	if (!file_put_contents($EditorFile, $EditorText)) {
 		echo "ERROR:  Updating Editor contents failed, Get Help if this occurs again.";
@@ -55,6 +30,13 @@ if ($bEditorSubmitted) {
 
 	exit;
 }
+
+// ----------------------------------------------------------
+// ----------------------------------------------------------
+
+$SubmitAction   = $config['QWSERVERURL'];
+$EditorText     = "<em>Input updated text here</em>";
+$EditorFile     = $config['rootPath'] . $config['Options']['EditorFile'];
 
 // ----------------------------------------------------------
 // Rename content files from ASP to PHP (should not be coded in this editor....)
@@ -94,7 +76,6 @@ echo "<tr><td colspan=20>&nbsp;</td></tr>";
 echo "<tr>";
 echo "<td align=center><input type=submit value='Submit Edit'></td>";
 echo "<td aligh=center><input type=submit value='Cancel' onclick=\"window.close();\"></td>";
-//echo "<td aligh=center>File: " . $config['Options']['EditorFile'] . "</td>";
 echo "<td align=center><font color=Maroon><b>Qwiki Editor</b></font></td>";
 echo "</tr>";
 

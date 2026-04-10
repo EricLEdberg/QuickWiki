@@ -7,6 +7,7 @@
  */
 
 /*
+Q:  Should we continue to use InnoDB?  Seems it may be old and not recommended?
 CREATE TABLE `searchfulltext` (
   `id` int NOT NULL AUTO_INCREMENT,
   `server` varchar(64) NOT NULL,
@@ -33,6 +34,7 @@ class clsFullTextSearch {
 	
 	public  $Version         = "1.5";
 	public  $MyDebug         = false;
+	public  $DISABLED        = false;                         // global flag set at any time to disable feature
 	public  $error           = NULL;
 	public  $objDB           = NULL;
 	private $objDBLocal      = False;                         // set true when class opens SQL objDB
@@ -52,18 +54,12 @@ class clsFullTextSearch {
 	public  $gaaMYSQLInfo     = NULL;                          // Default is NULL and should be initialized by app
 
 	public function __construct($aConfig) {		
-		
-		$this->server      = php_uname('n');
-		$this->app         = "qwiki";
-		$this->pkey        = time();
-		
-		// DB connection details
-		// TODO:  should contain other options too
 
-		//$this->gaaMYSQLInfo = $aConfig['config']['FTSDB'];
-		//$this->gaaMYSQLInfo = $aConfig['FTSDB'];
+		$this->server       = php_uname('n');
+		$this->app          = "qwiki";
+		$this->pkey         = time();
 		$this->gaaMYSQLInfo = $aConfig;
-		
+
 		if (!function_exists('mysqli_init') && !extension_loaded('mysqli')) {
 			echo 'ERROR:  php extension:  mysqli, is not loaded in php.ini.';
 			exit;
@@ -71,7 +67,6 @@ class clsFullTextSearch {
 	}
 
 	public function __destruct() {
-		
 		if ($this->objDBLocal) {
 			// close if objDB was opened by this class
 			$this->objDB->close();
@@ -84,7 +79,40 @@ class clsFullTextSearch {
 	//         Why is connect_err not set when the DB is not responding or even exist?
 	// ----------------------------------------------------------
 	public function InitDB() {
+		global $config;
 
+		$mysqli = mysqli_init();
+		if (!$mysqli) {
+			$this->DISABLED = true;
+			$this->error    = "ERROR: mysqli_init() error, search disabled";
+			return false;
+		}
+
+		// connection timeout
+		if (!$mysqli->options(MYSQLI_OPT_CONNECT_TIMEOUT, 4)) {
+			$this->DISABLED = true;
+			$this->error    = "ERROR: mysqli->options() error, timeout initialization error";
+			return false;
+		}
+
+		// connect to db
+		if ($this->MyDebug) $this->dump($this->gaaMYSQLInfo);
+		
+		if (!$mysqli->real_connect($this->gaaMYSQLInfo['SERVER'], $this->gaaMYSQLInfo['USER'], $this->gaaMYSQLInfo['PASS'], $this->gaaMYSQLInfo['DBNAME'],$this->gaaMYSQLInfo['PORT'])) {
+			if ($this->MyDebug) $this->dump($this->gaaMYSQLInfo);
+			$this->DISABLED = true;
+			$this->error    = "ERROR: mysqli real_connect() failed";
+			return false;
+		}
+
+		$this->objDB      = $mysqli;
+		$this->objDBLocal = true;
+		return true;
+
+		// ---------------------
+		// class does not work well if DB is down and/or unavailable
+		// ---------------------
+		
 		$this->objDB = new mysqli($this->gaaMYSQLInfo['SERVER'], $this->gaaMYSQLInfo['USER'], $this->gaaMYSQLInfo['PASS'], $this->gaaMYSQLInfo['DBNAME'],$this->gaaMYSQLInfo['PORT']);
 		if($this->objDB->connect_errno > 0){
 			die('clsFullTextSearch.InitDB() - Unable to connect to database [' . $this->objDB->connect_error . ']');
@@ -152,11 +180,8 @@ class clsFullTextSearch {
 		$xValues  = "";
 		$xComma   = ", ";
 
-		if ( (strcmp($aOptions['BODY'],"")==0) && (strcmp($aOptions['DKEYS'],"")==0) ) {
-			if ($this->MyDebug) echo "<li>InsertDB(clsFullTextSearch):  BODY and DKEYS are both empty, no folder or files either...</li>";
-			return false;
-		}
-
+		if ( !isset($aOptions['BODY']) && !isset($aOptions['DKEYS']) )          return false;
+		if ( (is_null($aOptions['BODY'])) && (is_null($aOptions['DKEYS'],"")) ) return false;
 
 		if ($this->MyDebug) {
 			echo '<li><strong>clsFullTextSearch.InsertDB()</strong></li>';
@@ -166,11 +191,15 @@ class clsFullTextSearch {
 		// query is a transaction
 		// ---------------------------------------------------------------------
 		try {
+			//$this->MyDebug = true;
+
 			if (is_null($this->objDB)) $this->InitDB();
 		
 			if ($this->MyDebug) {
 				$this->dump($aOptions);
 			}
+
+			if ($this->DISABLED) return false;
 
 			// -----------------------
 			// Insert or update record
@@ -233,10 +262,10 @@ class clsFullTextSearch {
 			$objSqlResults = $this->objDB->query($xSql);
 			
 			// -----------------------
-			// Delete child folders of the current folder that no longer exist
-			// These folders were deleted/removed by unknown means, often manually by users managing files/folders/content themselves
+			// Delete child folders of current working folder that no longer exist
+			// The child folders were deleted/removed by unknown means, often manually by users managing files/folders/content themselves
 			// -----------------------
-			if (is_array($aOptions['DKEYS'])) {
+			if (isset($aOptions['DKEYS'])) {
 				$xList  = "";
 				$xComma = "";
 
@@ -274,7 +303,10 @@ class clsFullTextSearch {
 					
 					if ($this->MyDebug) echo "<li>...SQL(DKEYS): " . $dkeySQL . "</li>";
 					
-					// Submit query that manages dependent objects
+					// since were executing multiple sql statements, enable a transaction support rollback() capability
+					$this->objDB->autocommit(FALSE);
+
+					// Submit query
 					$objSqlResults = $this->objDB->query($dkeySQL);
 				
 				}			
@@ -290,13 +322,12 @@ class clsFullTextSearch {
 		// ---------------------------------------------------------------------
 		} catch (Exception $e ) {
 			$aOptions['ERROR'] = $e;
-
+			
 			if ($this->MyDebug){
 				echo "<li>clsFullTextSearch.php->InsertDB(): EXCEPTION ERROR: " . print_r($e) . "</li>";
 			} 
-			
-			$this->objDB->rollback(); 
-			$this->objDB->autocommit(TRUE);  // restore setting
+			$this->objDB->rollback();
+			$this->objDB->autocommit(TRUE);
 			return False;
 		}
 

@@ -1,0 +1,89 @@
+[
+  {
+    "Category": "Images",
+    "BrowserSupported": true,
+    "mime_types": [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/svg+xml",
+      "image/bmp"
+    ],
+    "extensions": ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"]
+  },
+  {
+    "Category": "Video",
+    "BrowserSupported": true,
+    "mime_types": [
+      "video/mp4",
+      "video/webm",
+      "video/ogg"
+    ],
+    "extensions": ["mp4", "webm", "ogv"]
+  },
+  {
+    "Category": "Audio",
+    "BrowserSupported": true,
+    "mime_types": [
+      "audio/mpeg",
+      "audio/ogg",
+      "audio/wav"
+    ],
+    "extensions": ["mp3", "ogg", "wav"]
+  },
+  {
+    "Category": "Text",
+    "BrowserSupported": true,
+    "mime_types": [
+      "text/plain",
+      "text/html",
+      "text/css",
+      "text/javascript",
+      "application/json",
+      "application/xml"
+    ],
+    "extensions": ["txt", "html", "htm", "css", "js", "json", "xml"]
+  },
+  {
+    "Category": "Document",
+    "BrowserSupported": true,
+    "mime_types": [
+      "application/pdf"
+    ],
+    "extensions": ["pdf"]
+  },
+  {
+    "Category": "Document",
+    "BrowserSupported": null,
+    "mime_types": [
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    ],
+    "extensions": ["doc", "docx", "xls", "xlsx", "ppt", "pptx"]
+  },
+  {
+    "Category": "Archive",
+    "BrowserSupported": false,
+    "mime_types": [
+      "application/zip",
+      "application/x-rar-compressed",
+      "application/x-7z-compressed",
+      "application/gzip"
+    ],
+    "extensions": ["zip", "rar", "7z", "gz"]
+  },
+  {
+    "Category": "Data",
+    "BrowserSupported": null,
+    "mime_types": [
+      "application/octet-stream",
+      "application/x-binary"
+    ],
+    "extensions": ["bin", "dat"]
+  }
+]

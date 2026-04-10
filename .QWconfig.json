@@ -2,7 +2,7 @@
     "config": {
        "contentFileName": "-Content.php",
        "QWconfigFileName": ".QWconfig.json",
-       "QWPROGRAM": "QW.php",
+       "QWPROGRAM": "/QWiki/QW.php",
        "ArchiveFolderName": "Save",
        "folderSep": "\\",
        "MyDebug": true,
@@ -12,8 +12,13 @@
           "SEARCH": true,
           "AUTH": true,
           "UPLOAD": true,
-          "EDIT": true
-       },
+          "EDIT": true,
+          "GRID": false,
+          "FILES": true,
+          "FOLDERS": true},
+       "invalidFileNames": "index.,synctoy,sync.ffs_lock,thumbs,web,.htaccess,.htpasswd,.DS_Store,.tmp",
+       "invalidExtensions": "asp, htm, html, php, pl, db, .exe, .sh, .ksh, .bsh",
+       "invalidHidden": "., -, ~",
        "FTSDB": {
             "SERVER": "192.168.0.141",
             "DBNAME": "EdbergTools",
@@ -22,9 +27,204 @@
             "PASS": "DataEdb3rg1234#",
             "PORT": "3306"
        },
-       "invalidFileNames": "index.,synctoy,sync.ffs_lock,thumbs,web",
-       "invalidExtensions": "asp, htm, html, php, pl, db, .exe, .sh, .ksh, .bsh",
-       "invalidHidden": "., -, ~"
+       "GRID": {
+            "colsPerPage": 6,
+            "rowsPerPage": 4,
+            "FolderNames": ["images", "photos", "pictures", "media", "videos"]
+        },
+        "IMAGES": {
+            "supported_types": [
+                "image/jpeg",
+                "image/png",
+                "image/gif",
+                "image/webp"
+            ]
+        },
+       "AUTH": {
+            "serverURL":  "https://SUSIEPC/Auth/Auth.php"
+       },
+       "FILETYPES": {
+          "type": [
+            {
+                "ext": [
+                "avi",
+                "mpg",
+                "mpeg",
+                "mpe",
+                "mp4",
+                "mov",
+                "wmv",
+                "asf",
+                "asx",
+                "wvx",
+                "3gp",
+                "divx",
+                "xvid",
+                "qt",
+                "mkv",
+                "ogv",
+                "webm",
+                "flv"
+                ],
+                "_name": "Media file",
+                "_icon": "movie.png"
+            },
+            {
+                "ext": [
+                "mp3",
+                "m4a",
+                "wav",
+                "wma",
+                "ram",
+                "rm",
+                "weba",
+                "aac"
+                ],
+                "_name": "Audio file",
+                "_icon": "audio.png"
+            },
+            {
+                "ext": [
+                "tiff",
+                "psd",
+                "ico",
+                "svg"
+                ],
+                "_name": "Unsupported image",
+                "_icon": "image.png"
+            },
+            {
+                "ext": [
+                "zip",
+                "arj",
+                "sit",
+                "rar",
+                "lzw",
+                "7z"
+                ],
+                "_name": "Archive",
+                "_icon": "zip.png"
+            },
+            {
+                "ext": ["xml"],
+                "_name": "Extensible Markup file",
+                "_icon": "xml.png"
+            },
+            {
+                "ext": ["htt"],
+                "_name": "Web page template",
+                "_icon": "htt.png"
+            },
+            {
+                "ext": ["pdf"],
+                "_name": "Acrobat pdf file",
+                "_icon": "pdf.png"
+            },
+            {
+                "ext": [
+                "doc",
+                "docx"
+                ],
+                "_name": "Word document",
+                "_icon": "doc.png"
+            },
+            {
+                "ext": [
+                "xls",
+                "xlsx"
+                ],
+                "_name": "Excel spreadsheet",
+                "_icon": "xls.png"
+            },
+            {
+                "ext": [
+                "ppt",
+                "pptx"
+                ],
+                "_name": "Power Point presentation",
+                "_icon": "ppt.png"
+            },
+            {
+                "ext": ["mdb"],
+                "_name": "MS Access database",
+                "_icon": "mdb.png"
+            },
+            {
+                "ext": [
+                "djvu",
+                "djv"
+                ],
+                "_name": "DjVu image or document",
+                "_icon": "djvu.png"
+            },
+            {
+                "ext": ["zif"],
+                "_name": "Zoomify image",
+                "_icon": "zif.png"
+            },
+            {
+                "ext": ["odt"],
+                "_name": "Open Office text",
+                "_icon": "odt.png"
+            },
+            {
+                "ext": ["ods"],
+                "_name": "Open Office spreadsheet",
+                "_icon": "ods.png"
+            },
+            {
+                "ext": ["odp"],
+                "_name": "Open Office presentation",
+                "_icon": "odp.png"
+            },
+            {
+                "ext": ["odg"],
+                "_name": "Open Office graphics",
+                "_icon": "odg.png"
+            },
+            {
+                "ext": ["odb"],
+                "_name": "Open Office database",
+                "_icon": "odb.png"
+            },
+            {
+                "ext": [
+                "url",
+                "lnk"
+                ],
+                "_name": "Link",
+                "_icon": "url.png"
+            },
+            {
+                "ext": [
+                "jpg",
+                "jpeg",
+                "mpo"
+                ],
+                "_name": "JPEG image",
+                "_mimeType": "image/jpeg"
+            },
+            {
+                "ext": ["gif"],
+                "_name": "GIF image",
+                "_mimeType": "image/gif"
+            },
+            {
+                "ext": [
+                "png",
+                "x-png"
+                ],
+                "_name": "Portable Networks Graphics image",
+                "_mimeType": "image/png"
+            },
+            {
+                "ext": ["webloc"],
+                "_name": "Web Location",
+                "_icon": "url.png"
+            }
+          ],
+          "_foldericon": "folder.png"
+        }
     },
     "server": {
         "susiepc": {
@@ -33,7 +233,7 @@
                 "QWKEY": "EdbergNet",
                 "QWNAME": "EdbergNet Qwiki",
                 "QWURL": "https://susiepc/QWiki/QW",
-                "QWPROGRAM": "QW.php",
+                "QWPROGRAM": "/QWiki/QW/QW.php",
                 "QWABSTRACT": "Edberg Family Technical Information",
                 "rootURL": "https://susiepc/Qwiki/EdbergQwiki",
                 "rootPath": "P:\\Qwiki\\EdbergQwiki",
@@ -44,7 +244,7 @@
                 "QWKEY": "BirdNest",
                 "QWNAME": "BirdNest Qwiki",
                 "QWURL": "https://susiepc/QWiki/QW",
-                "QWPROGRAM": "QW.php",
+                "QWPROGRAM": "/QWiki/QW/QW.php",
                 "QWABSTRACT": "Bird Family Technical Information",
                 "rootURL": "https://susiepc/Qwiki/BirdNestQwiki",
                 "rootPath": "P:\\Qwiki\\BirdNestQwiki",
@@ -57,7 +257,7 @@
                 "QWKEY": "EdbergNet",
                 "QWNAME": "EdbergNet Qwiki MIRROR",
                 "QWURL": "http://elelinux/QW",
-                "QWPROGRAM": "QW.php",
+                "QWPROGRAM": "/QW/QW.php",
                 "QWABSTRACT": "Edberg Family Technical Information - ELELINUX MIRROR",
                 "rootURL": "http://elelinux/QW/EdbergQwiki",
                 "rootPath": "/var/www/html/QW/EdbergQwiki",
@@ -71,7 +271,7 @@
                 "QWKEY": "EdbergNet",
                 "QWNAME": "EdbergNet Public Qwiki",
                 "QWURL": "https://EdbergNet.com/QWiki",
-                "QWPROGRAM": "QW.php",
+                "QWPROGRAM": "/QWiki/QW.php",
                 "QWABSTRACT": "Edberg Public Qwiki",
                 "rootURL": "https://EdbergNet.com/EdbergNetQWiki",
                 "rootPath": "/kunden/homepages/24/d661958693/htdocs/EdbergNetQWiki",
@@ -84,6 +284,31 @@
                     "EDIT": true
                  }
             }
-        }     
+        },
+        "elew11": {
+            "EdbergNet": {
+                "QWID": 5,
+                "QWKEY": "ELEW11 EdbergNet",
+                "QWNAME": "ELEW11 EdbergNet Qwiki",
+                "QWURL": "https://ELEW11/Qwiki/QW",
+                "QWPROGRAM": "/Qwiki/QW/QW.php",
+                "QWABSTRACT": "Edberg Family Technical Information - ELEW11 Development",
+                "folderSep": "\\",
+                "CUSTOMBODY": "style=\"background: #e6fffa;\"",
+                "rootURL": "https://ELEW11/Qwiki/EdbergQwiki",
+                "rootPath": "C:\\PUB\\Qwiki\\EdbergQwiki",
+                "FTSDB": {
+                    "SERVER": "ELEW11",
+                    "DBNAME": "EdbergTools",
+                    "TABLENAME": "searchfulltext", 
+                    "USER": "ele", 
+                    "PASS": "Sweden321!",
+                    "PORT": "3306"
+               },
+               "AUTH": {
+                    "serverURL":  "https://ELEW11/Auth/Auth.php"
+               }
+            }
+        }        		
     }
 }

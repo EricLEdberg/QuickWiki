@@ -1,0 +1,24 @@
+{
+  "root_folder1": "C:\\pub\\Qwiki\\EdbergQwiki",
+  "root_folder": "C:\\PUB\\Qwiki\\QW\\Images",
+  "grid_colums_per_page": 5,
+  "grid_rows_per_page": 4,
+  "items_per_page": 12,
+  "allowed_image_types": [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp"
+  ],
+  "do_not_display": {
+    "filenames": [
+      "^.htaccess$"
+    ],
+    "extensions": [
+      "\/.php$",
+      "\/.exe$",
+      "\/.sh$"
+    ]
+  },
+  "log_file": "C:\\Users\\ele\\Downloads\\FileGrid.log"
+}

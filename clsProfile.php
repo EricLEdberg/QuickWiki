@@ -42,7 +42,7 @@ class clsProfile {
     }
 
     // --------------------------------------------
-    // INIT must be called on each page load to initialize some config[] options
+    // INIT must be called on each page load to initialize config[] options
     // --------------------------------------------
     function INIT($aOptions) {	
 		
@@ -51,16 +51,16 @@ class clsProfile {
 			//return true;
 		}
 
-		// clsAuth authentication server submits information to clsProfile contianing user information in an encrypted key (after login)
+		// clsAuth authentication server submits information to clsProfile contianing encrypted user data after a successful login
 		// $this->incommingData() is overloaded by QWProfile and will decrypt the data sent by clsAuth.php
 		// TODO:  initialize local user data and log user into qw ($this->logInUser?)
 		if (isset($_POST['AuthKey'])) {
-			$this->config['Auth']['AuthKey']          = $_POST['AuthKey'];
-			$this->config['Auth']['AuthKeyDecrypted'] = $this->incommingData($this->config['Auth']['AuthKey']);
+			$this->config['AUTH']['AuthKey']          = $_POST['AuthKey'];
+			$this->config['AUTH']['AuthKeyDecrypted'] = $this->incommingData($this->config['AUTH']['AuthKey']);
 			$this->logInUser(null);
 		}
 		
-		// Perform specific Actions initiated by native clsProfile methods
+		// Perform actions initiated by clsProfile methods
 		if (isset($this->config['Options']['profileAction']) ) {
 			switch ($this->config['Options']['profileAction']) {
 				case 'logout':
@@ -91,7 +91,7 @@ class clsProfile {
 	// --------------------------------------------
     // Placeholder functions that can be overloaded by application, typically to encrypt/decrypt the data
 	// GET, POST, or PUT options are the target to prevent snooping of actual file information
-	// Let's try to not natively embed encryption methods into this class
+	// Do not embed encryption methods into this class
 	// --------------------------------------------
     public function outgoingData(string $xStr) {
 		return($xStr);
@@ -109,11 +109,17 @@ class clsProfile {
 		}
 		if (!isset($this->config['User'])) return false;
 		if (!isset($this->config['User']['email']) || !isset($this->config['User']['uid']) ) return false;
+
+		// db values initialized with null.  Check if new user process db insert does not set these to null by default?
+		if (!isset($this->config['User']['Phone']))          $this->config['User']['Phone']          = null;
+		if (!isset($this->config['User']['dtModification'])) $this->config['User']['dtModification'] = null;
+		if (!isset($this->config['User']['dtLastUpdate']))   $this->config['User']['dtLastUpdate']   = null;
+
 		return true;	
 	}
 
 	// --------------------------------------------
-	// Authentication server returned with a successful login
+	// Authentication server returned a successful login
 	// TODO:  should support different methods to obtain logged-in user information
     // --------------------------------------------
     function logInUser($aOptions){
@@ -122,7 +128,7 @@ class clsProfile {
 		
 		// Method 1:  composer phpauth/phpauth implemented by clsAuth.php
 		// AuthKey is encrypted json returned by clsAuth.php
-		$_SESSION['QWUser']   = $this->config['Auth']['AuthKey'];   
+		$_SESSION['QWUser']   = $this->config['AUTH']['AuthKey'];   
 		$this->config['User'] = json_decode($this->incommingData($_SESSION['QWUser']), true);    
 		
 		return true;		
@@ -134,11 +140,11 @@ class clsProfile {
     function logOutUser($aOptions){	
 		if (isset($_SESSION['QWUser']))                         unset($_SESSION['QWUser']);
 		if (isset($this->config['User']))                       unset($this->config['User']);
-		if (isset($this->config['Auth']['AuthKey']))            unset($this->config['AuthKey']);
-		if (isset($this->config['Auth']['AuthKeyDecrypted']))   unset($this->config['AuthKeyDecrypted']);
+		if (isset($this->config['AUTH']['AuthKey']))            unset($this->config['AuthKey']);
+		if (isset($this->config['AUTH']['AuthKeyDecrypted']))   unset($this->config['AuthKeyDecrypted']);
 
-		// temp legacy stuff
-		if (isset($_SESSION['QWPUser']))   unset($_SESSION['QWPUser']);
+		// temp legacy
+		if (isset($_SESSION['QWPUser']))                        unset($_SESSION['QWPUser']);
 
 		return true;
 	}
@@ -159,14 +165,12 @@ class clsProfile {
 
 		echo "<h2>Qwiki User Profile</h2>";
 		if ($this->isLoggedOn(null)) {
-			echo "<button class='button' id=profileLogout onclick='GoToURL(\"" . $this->config['Auth']['logoutURL'] . "\",\"_self\"); return false;'>Qwiki Logout</button>";
+			echo "<button class='button' id=profileLogout onclick='GoToURL(\"" . $this->config['AUTH']['logoutURL'] . "\",\"_self\"); return false;'>Qwiki Logout</button>";
 		} else {
-			echo "<button class='button' id=profileLogin onclick='GoToURL(\"" . $this->config['Auth']['loginURL'] . "\",\"_self\"); return false;'>Qwiki Login</button>";
+			echo "<button class='button' id=profileLogin onclick='GoToURL(\"" . $this->config['AUTH']['loginURL'] . "\",\"_self\"); return false;'>Qwiki Login</button>";
 		}
-		
 		$objQW->ReturnToQwikiButton(null);
 
-		$this->dump($this->config);
 	}    
 
 	// --------------------------------------------
@@ -189,7 +193,10 @@ class clsProfile {
 		echo "</ul>";
 	}
     
+    // --------------------------------------------
+    // --------------------------------------------
     public function showCurrentUser($aOptions) {
+		
         echo '<div id="currentUserInfo" class="comment" style="display:inline-block;"><table border=1 cellpadding=5 cellspacing=5>' .
         '<tr><td align=right>Email:</td>' . '<td align=left><b>' . $this->config['User']['email'] . '</b></td></tr>' . 
         '<tr><td align=right>Username:</td>' . '<td align=left><b>' . $this->config['User']['Username'] . '</b></td></tr>' . 

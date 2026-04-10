@@ -124,8 +124,8 @@ class clsFileIO {
 		$xFilePath = ltrim($xFilePath, '.-');
 		
 		// maximize filename length to 255 bytes http://serverfault.com/a/9548/44086
-		$ext      = pathinfo($xFilePath, PATHINFO_EXTENSION);
-		$xFilePath = mb_strcut(pathinfo($xFilePath, PATHINFO_FILENAME), 0, 255 - ($ext ? strlen($ext) + 1 : 0), mb_detect_encoding($xFilePath)) . ($ext ? '.' . $ext : '');
+//		$ext      = pathinfo($xFilePath, PATHINFO_EXTENSION);
+//		$xFilePath = mb_strcut(pathinfo($xFilePath, PATHINFO_FILENAME), 0, 255 - ($ext ? strlen($ext) + 1 : 0), mb_detect_encoding($xFilePath)) . ($ext ? '.' . $ext : '');
 		
 		return $xFilePath;
 	}
@@ -284,6 +284,16 @@ class clsFileIO {
 		echo "<br><br>&nbsp;&nbsp;&nbsp;<input type=submit name='FileIO_Action' value='Copy File'>";
 		echo "&nbsp;&nbsp;&nbsp;<input type=submit name='FileIO_Action' value='Rename File'>";
 
+		echo "<h3>Archive File</h3>";
+		echo "<ul>";
+		echo "<li>This process will archive a date-stampted copy of the file in a folder named: <em>Save</em> in the Current Folder</li>";
+		echo "<li>The file will have the: _YYYY-MM-DD, date stamp appended to the root portion of the file name. If the file name is:  MyDocument.ppt, it will be saved as:  MyDocument_YYYY-MM-DD.ppt</li>";
+		echo "<li>A Save folder will be created if it does not already exists</li>";
+		echo "<li>An archive will occur only once per day.  It will not overwrite a previously achived file with the same date-stamp</li>";
+		echo "</ul>";
+		echo "&nbsp;&nbsp;&nbsp;<input type=submit name='FileIO_Action' value='Archive File'>";
+		// echo "<br>&nbsp;&nbsp;&nbsp;<input type=checkbox name=ARCHIVE_DELETE_ORIGINAL>&nbsp;&nbsp;Delete original file after successful archive";
+
 		echo "<h3>Delete File</h3>";
 		echo "<ul>";
 		echo "<li>This process will delete the file</li>";
@@ -292,16 +302,7 @@ class clsFileIO {
 		echo "</ul>";
 		echo "&nbsp;&nbsp;&nbsp;<input type=submit name='FileIO_Action' value='Delete File'>";
 	
-		echo "<h3>Archive File</h3>";
-		echo "<ul>";
-		echo "<li>This process will archive a date-stampted copy of the file in a folder named: <em>Save</em></li>";
-		echo "<li>The file will have the: _YYYY-MM-DD, date stamp appended to the root portion of the file name. if (the file name is:  MyDocument.ppt, it will be saved as:  MyDocument_YYYY-MM-DD.ppt</li>";
-		echo "<li>A new Save directory will be created if it does not exists</li>";
-		echo "<li>An archive will only occur only once per day.  It will not overwrite a previously-achived file with the same date-stamp</li>";
-		echo "</ul>";
-		echo "&nbsp;&nbsp;&nbsp;<input type=submit name='FileIO_Action' value='Archive File'>";
-		// echo "<br>&nbsp;&nbsp;&nbsp;<input type=checkbox name=ARCHIVE_DELETE_ORIGINAL>&nbsp;&nbsp;Delete original file after successful archive";
-
+// note supported or debugged.  Dev Test only.	
 if(0) {
 		echo "<h3>Uncompress</h3>";
 		echo "<ul>";
@@ -439,6 +440,10 @@ if(0) {
             $this->config['error'] = "Source file does not exist?";
             return false;
         }
+        if (!isset($aOptions['dst'])) {
+			echo "<h2>ERROR: new file name was not provided</h2>";
+			exit;
+		}
         if (file_exists($aOptions['dst'])) {
             $this->config['error'] = "New file name already exists";
             return false;
@@ -568,8 +573,14 @@ switch (strtoupper($config['Options']['FileIO_Action'])) {
 		// realPath to src file initialized by FileIO Manage File form as an encrypted form parameter
 		// TODO:  should also pass folderSep in form too if clsQW is not used by the main application
 		// TODO:  write and include a:  fileSanitize() method to validate it does not contain illegal characters
-		$aOptions['src'] = $objFIO->config['Options']['realPath'];         
-		$aOptions['dst'] = dirname($objFIO->config['Options']['realPath']) . $objQW->config['folderSep'] . $objFIO->config['Options']['FileIO_FileNameNew'];
+	
+		if ( strcmp($objFIO->config['Options']['FileIO_FileNameNew'],"") == 0) {
+			echo "<br><div class=title>ERROR:   New File Name was not provided</div>";
+			exit;
+		}
+
+		$aOptions['src']    = $objFIO->config['Options']['realPath'];
+		$aOptions['dst']    = dirname($objFIO->config['Options']['realPath']) . $objQW->config['folderSep'] . $objFIO->config['Options']['FileIO_FileNameNew'];
 		if (!$objFIO->FILEIO_COPY($aOptions)) {
 			echo "<br><br><div class=title>ERROR: " . $objFIO->config['error'] . "</div>";
 		} else {
@@ -584,6 +595,10 @@ switch (strtoupper($config['Options']['FileIO_Action'])) {
 		// realPath to src file initialized by FileIO Manage File form as an encrypted form parameter
 		// TODO:  should also pass folderSep in form too if clsQW is not used by the main application
 		// TODO:  write and include a:  fileSanitize() method to validate it does not contain illegal characters
+		if ( strcmp($objFIO->config['Options']['FileIO_FileNameNew'],"") == 0) {
+			echo "<br><div class=title>ERROR:   New File Name was not provided</div>";
+			exit;
+		}		
 		$aOptions['src'] = $objFIO->config['Options']['realPath'];         
 		$aOptions['dst'] = dirname($objFIO->config['Options']['realPath']) . $objQW->config['folderSep'] . $objFIO->config['Options']['FileIO_FileNameNew'];
 		if (!$objFIO->FILEIO_RENAME($aOptions)) {

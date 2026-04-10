@@ -10,12 +10,51 @@
 // This var initializes the start of the page load time
 // Used by clsTimer.asp to track client load times
 // ----------------------------------------------------------------------------------
+
 var PageLoadStartTime = (new Date()).getTime();
+
+// Test copy URL to clipboard
+function copyToClipboard(xVal) {
+  if (xVal === null) return;
+  navigator.clipboard.writeText(xVal);
+}
+function CTNCBID(xID) {
+  let text = document.getElementById(xID);
+  text.select();
+  navigator.clipboard.writeText(text.value);
+}
+
 
 function GoToURL(url,target) {
 	if (target == "") target="_self";
 	if (url != "") open(url,target);
 }
+
+// ----------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------
+function setCookie(name,value,days) {
+    var expires = "";
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days*24*60*60*1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+}
+function getCookie(name) {
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    for(var i=0;i < ca.length;i++) {
+        var c = ca[i];
+        while (c.charAt(0)==' ') c = c.substring(1,c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+    }
+    return null;
+}
+function eraseCookie(name) {   
+    document.cookie = name +'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+}
+
 	
 // ----------------------------------------------------------------------------------
 // Show or hide based on html element ID
@@ -158,4 +197,9 @@ function returnFileSize(number) {
 	  return (number/1048576).toFixed(1) + 'MB';
 	}
 }
+
+// ----------------------------------------------------
+// ----------------------------------------------------
+
+
 

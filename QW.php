@@ -1,6 +1,6 @@
 <?php
 // --------------------------------------------
-// Author:  Eric L. Edberg, 2012-2024 ele@EdbergNet.com
+// Author:  Eric L. Edberg, 2012-2026 ele@EdbergNet.com
 // --------------------------------------------
 
 error_reporting(E_ALL & ~E_NOTICE);
@@ -31,24 +31,12 @@ $qwConfigJsonDecoded = json_decode($qwConfigJson, true);      // json to array()
 
 if (is_null($qwConfigJsonDecoded)) {
     echo "ERROR:  invalid QW config JSON, Get Help";
+	echo $qwConfigJson;
     exit;
 }
 $config = array_merge($config, (array) $qwConfigJsonDecoded['config']);
 
 // --------------------------------------------
-// class - Full Text Search
-// Must be instanciated before clsEncryption due to sequencing when multiple class __DESTRUCT() methods are evaluated upon termination
-// Class must not require encryption keys when instanciated, see: INIT(), since ENC is not available yet.
-// --------------------------------------------
-if ($config['FEATURE']['SEARCH'] ) {
-    require("./clsFullTextSearch.php");
-    $objFTS = new clsFullTextSearch($config['FTSDB']);
-}
-
-// --------------------------------------------
-// encryption
-// QW does not have any knowledge about about internal operations of clsEncryption, including keys
-// Must be instanciated after clsFullTextSearch
 // --------------------------------------------
 $aOptions = array();
 $aOptions['ENVKEYFILE'] = __DIR__ . $config['folderSep'] . ".env";
@@ -57,20 +45,51 @@ $objENC = new \clsEncryption\clsEncryption($aOptions);
 //$objENC->ExecuteTests();
 //exit;
 
+
 // --------------------------------------------
-// Multiple QWI may reside on 1 web server
-// If user has not chosen a QW, or if they want to choose another one,  prompt and store choice in a session
+// Chose QW
+// Developer Hint:  To unset current environment choose: Admin menu -> Select Different Qwiki.  
+// -  It will delete QWI cookie and session parameters starting fresh.
 // --------------------------------------------
-if ( isset($_REQUEST['ChooseQwiki']) && isset($_SESSION["QWI"]) ) unset($_SESSION["QWI"]);
-if (!isset($_SESSION["QWI"])) {   
+
+// unset _SESSION which forces pickqwi() to load again
+// Note:  currently, you must unset the cookie which initializes the session
+if ( isset($_REQUEST['ChooseQwiki'] ) && isset($_SESSION["QWI"]) ) {
+    unset($_COOKIE['QWI']);
+    unset($_SESSION["QWI"]);
+}
+
+// Testing using cookies to store QW choice.  Cookies will remember QWI choice across browser restarts.
+// Today, set a 1-day cookie persistance so user does not have to log in again within a 24 hour period.  See:  pickqwiki().
+// Today, initialize _SESSION (which was developed/used first) with cookie data (if it exists); they should contain identicle data
+// In the future, we code to use only cookies or only sessions
+
+if (isset($_COOKIE['QWI'])) {
+    $_SESSION["QWI"] = $_COOKIE['QWI'];
+};
+
+// If user clicked link to a specific QWI OR user has not already picked a QWI
+if ( isset($_REQUEST['QWI']) || !isset($_SESSION["QWI"]) )  {
     pickqwi(null);
     exit;
 }
 
-// Load QW choice stored in session array
-// These wre serialized and encrypted by pickqwi()
+// --------------------------------------------
+// Load QW choice stored in session
+// Data is serialized and encrypted
+// --------------------------------------------
 $config = array_merge($config, unserialize($objENC->decryptData($_SESSION["QWI"])));
 
+// --------------------------------------------
+// class - Full Text Search
+// Default DB connection parameters may be altered dependent on QW choice
+// --------------------------------------------
+
+if ($config['FEATURE']['SEARCH'] ) {
+    require("./clsFullTextSearch.php");
+    $objFTS = new clsFullTextSearch($config['FTSDB']);
+}
+    
 // --------------------------------------------
 // Configuration options that require a QW instance choice to resolve
 // TODO:  both of these could be automated/removed
@@ -98,14 +117,17 @@ if (!(strcmp($_SERVER['QUERY_STRING'],"")==0)) {
 // --------------------------------------------
 // clsProfile.php is an implementation of: composer PHPauth/PHPauth
 // QW uses this reflector for user authentication
+// TODO:  serverURL should be defined in .QWconfig.json
 // --------------------------------------------
 if ($config['FEATURE']['AUTH'] ) {
-    $config['Auth']['Enabled']   = true;
-    $config['Auth']['serverURL'] = "https://susiepc/QWiki/Auth/Auth.php";
-    $config['Auth']['loginURL']  = $config['Auth']['serverURL'] . "?" . $objENC->encryptData("Action=LoginFormDisplay&AuthReturnURL=" . urlencode($config['QWSERVERURL'] . "?" . $objENC->encryptData("Profile=1")) ); 
+    $config['AUTH']['Enabled']   = true;
+    $config['AUTH']['serverURL'] = "https://ELEW11/Auth/Auth.php";
+    $config['AUTH']['loginURL']  = $config['AUTH']['serverURL'] . "?" . $objENC->encryptData("Action=LoginFormDisplay&AuthReturnURL=" . urlencode($config['QWSERVERURL'] . "?" . $objENC->encryptData("Profile=1")) ); 
     // log out of QW, not the remote authentication server.  
     // QW probably would use Ajax to send a remote log-out cmd to remote auth server.  TODO I guess....
-    $config['Auth']['logoutURL'] = $config['QWSERVERURL']       . "?"  . $objENC->encryptData("Profile=1&profileAction=logout");
+    $config['AUTH']['logoutURL'] = $config['QWSERVERURL']       . "?"  . $objENC->encryptData("Profile=1&profileAction=logout");
+    //dump($config);
+    //exit;
 }
 
 // --------------------------------------------
@@ -189,14 +211,26 @@ if (isset($config['Options']['FileIO_Action'])) {
 }
 
 // --------------------------------------------
-// default:   Display qwiki
+// FTS Search Operations
 // --------------------------------------------
 
+if ( isset($config['FEATURE']['SEARCH']) && (isset($config['Options']['FTS_ENABLED']) || isset($_REQUEST['FTS_ENABLED'])) ){  
+    $objQW->displayPageOptions(null);
+    echo "<p>";
+    require_once('./Search.php');
+    exit;
+}
+
+// --------------------------------------------
+// default:   Display qwiki
+// --------------------------------------------
 $objQW->displayQwikiMain(null);
+
 
 // --------------------------------------------
 // Pick QW instance
 // Must be called before clsQW is instanciated
+// QWS and QWI must be provided as a pair
 // --------------------------------------------
 function pickqwi($aOptions) {
     global $qwConfigJsonDecoded;
@@ -209,16 +243,44 @@ function pickqwi($aOptions) {
         $xQWI = $_REQUEST['QWI'];          // QW instance
     }
     
-    // user selected QW server & instance.  
+    // A QW server & instance was selected
     // Load it's configuration and store in _SESSION['QWI']
      if (!is_null($xQWI)) {
+        
+        if (!isset($qwConfigJsonDecoded['server'][$xQWS][$xQWI])) {
+            echo "<h2>ERROR: Qwiki instance: $xQWS:$xQWI, does not exist anymore, Get Help</h2>";
+            exit;
+        }
+        
         $aConfig         = $qwConfigJsonDecoded['server'][$xQWS][$xQWI];
+        $aConfig['QWD']  = time();                                             // GMT time.  Future security/replay checks
+        $aConfig['PSID'] = session_id();
         $aConfig['QWS']  = $xQWS;
         $aConfig['QWI']  = $xQWI;
-        $_SESSION['QWI'] = $objENC->encryptData(serialize($aConfig));         // Save instance choice array in a session
-        $xURL            = $aConfig['QWURL'] . "/QW.php";       
+        if (isset($_SESSION['QWI'])){
+            unset($_SESSION['QWI']);
+        }
+        
+        $xData           = $objENC->encryptData(serialize($aConfig));  
+        
+        // Save instance choice in a session        
+        $_SESSION['QWI'] = $xData;         
+        
+        // Save QW instance in browser cookie using JS with a 1-day expiration
+        // Prevents user from having to make same QWI choice when they close their browser periodically and re-visit QW
+        echo <<< EOHERE
+        <script>
+        var value   = "$xData";
+        var days    = 1;
+        var date    = new Date();
+        var expires = "";
+        date.setTime(date.getTime() + (days*24*60*60*1000));
+        expires     = "; expires=" + date.toUTCString();
+        document.cookie = "QWI" + "=" + (value || "")  + expires + "; path=/";
+        </script>
+        EOHERE;
 
-        // Pass-through additional (optional) query string arguments to redirect URL after encrypting them
+        // Pass-through additional (optional) query string arguments to destination URL after encrypting them
         $xOptions = null;
         $xAmper   = "";
         foreach($_REQUEST as $key => $val) {
@@ -232,6 +294,8 @@ function pickqwi($aOptions) {
             }
         }
         $xOptions = $objENC->encryptData($xOptions);
+        
+        $xURL     = $aConfig['QWURL'] . "/QW.php";       
         if (!is_null($xOptions)) $xURL .= "?" . $xOptions;
 
         echo <<<EOHERE
@@ -261,5 +325,6 @@ function pickqwi($aOptions) {
 
     exit;
 }
+
 ?>
 

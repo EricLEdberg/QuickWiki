@@ -175,24 +175,49 @@ class clsEncryption {
 	function decryptData($input) {
         if (!isset($input) || trim($input) == '') return false;             // null or empty
 
-        $xEncryptedData      = base64_decode($input);        
+        $xEncryptedData      = base64_decode($input);
         $xKEY1               = base64_decode($this->config['KEY1']);
         $method              = "aes-256-cbc";
         $iv_length           = openssl_cipher_iv_length($method);            
         $iv                  = substr($xEncryptedData,0,$iv_length);       
         
+        //$this->dump($this->config);
+        //exit;
+
         if (!isset($this->config['KEY2'])) {
             $xDataEncrypted = substr($xEncryptedData,$iv_length);
             return openssl_decrypt($xDataEncrypted,$method,$xKEY1,OPENSSL_RAW_DATA,$iv);
 
         } else {
-            $xKEY2                = base64_decode($this->config['KEY2']);       
-            $second_encrypted     = substr($xEncryptedData,$iv_length,64);
+
+            $xKEY2                = base64_decode($this->config['KEY2']);
             $first_encrypted      = substr($xEncryptedData,$iv_length+64);
-            $data                 = openssl_decrypt($first_encrypted,$method,$xKEY1,OPENSSL_RAW_DATA,$iv);      
-            $second_encrypted_new = hash_hmac('sha3-512', $first_encrypted, $xKEY2, TRUE);
+            $second_encrypted     = substr($xEncryptedData,$iv_length,64);
             
-            if (hash_equals($second_encrypted,$second_encrypted_new)) return $data;
+            if(0){
+                echo "xKEY1: $xKEY1<br>";
+                echo "method: $method<br>";
+                echo "iv_length: $iv_length<br>";
+                echo "iv: $iv<br>";
+                echo "iv(strlen): " . strlen($iv) . "<br>";
+                echo "OPENSSL_RAW_DATA: " . OPENSSL_RAW_DATA . "<br>";
+                echo "xKEY2: " . $xKEY2 . "<br>";
+                echo "first_encrypted: " . $first_encrypted . "<br>";
+                echo "second_encrypted: " . $second_encrypted . "<br>";
+            }
+            
+            $data                 = openssl_decrypt($first_encrypted,$method,$xKEY1,OPENSSL_RAW_DATA,$iv);
+            //echo "data: " . $data . "<br>";
+            
+            $second_encrypted_new = hash_hmac('sha3-512', $first_encrypted, $xKEY2, TRUE);
+            //echo "second_encrypted_new: " . $second_encrypted_new . "<br>";
+            //exit;
+
+            if (hash_equals($second_encrypted,$second_encrypted_new)) {
+                //echo "hash equals.....<br>";
+                //exit;
+                return $data;
+            }
         }     
         
         return false;
@@ -247,7 +272,10 @@ class clsEncryption {
         $pairs = explode($split1, $inputString);
 
         foreach ($pairs as $pair) {
-            // Split each pair into name and value
+
+            if (is_null($pair) || (strcmp($pair,"")==0) ) continue;
+
+            // Split pair into name and value
             list($name, $value) = explode($split2, $pair, 2);
 
             // Trim leading or trailing whitespaces
