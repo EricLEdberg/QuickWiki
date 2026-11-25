@@ -8,19 +8,30 @@ class QuickWiki {
     public $MyDebug;
     public $QWCONTENT;
     public $QWIFRAME;
-    public $HtmlheaderEnabled;
-    
+    public $objENC;
+    public $HtmlHeaderEnabled;
+    public $FTS_BODY;
+    public $objFTS;
+    public $objUser;
+    public $qwconfig;
+        
     // -----------------------------------------------------------------------------
     // -----------------------------------------------------------------------------
     public function __construct(&$aConfig) {
+        global $objENC;
+        global $objUser;
 
+        $this->objUser           = $objUser;                   // reference to global user object
+        $this->objENC            = $objENC;                    // reference to global encryption object
+        $this->objFTS            = null;                       // reference to global FTS object.  Instanciated in QW.php if search enabled
         $this->MyDebug           = false;
-        $this->config            = &$aConfig;                 // QW.php and clsQWiki.php "config" are one and the same.  Changes here apply to QW.php too.
+        $this->config            = &$aConfig;                  // QW.php and clsQWiki.php "config" are one and the same.  Changes here apply to QW.php too.
         $this->config['folders'] = null;
         $this->config['files']   = null;
-        $this->HtmlheaderEnabled = false;
+        $this->HtmlHeaderEnabled = false;
         $this->QWCONTENT         = null;                       // when .QWContent.php is evaluated run-time, it's output is saved to:  $this->QWCONTENT
-        $this->QWIFRAME          = null;                       // when index.htm* is evaluated at run-time. it's output is saved to:   $this->QWIFRAME
+        $this->QWIFRAME          = null;                       // when index.htm* is evaluated at run-time. it's output is saved to:   $this->QWIFRAME          
+        $this->FTS_BODY          = null;                       // when .QWContent.php is evaluated run-time, if it contains a <div id=FTS_BODY>...</div> then the content of that div is saved to:  $this->FTS_BODY.  This allows FTS content to be indexed separately from the rest of the content which may contain data that should not be indexed (e.g. urls in iframes).
         
         $this->INIT(null);
     }
@@ -54,7 +65,7 @@ class QuickWiki {
         //        PHP, for some reason, does not destruct these classes automatically
         // --------------------------------------------------------------------------------
         
-        if ($this->HtmlheaderEnabled) {
+        if ($this->HtmlHeaderEnabled) {
             echo "</body></html>";
         }
     }
@@ -103,9 +114,6 @@ class QuickWiki {
             echo "<li>ERROR:  real path does not exist:  $this->config['realPath']</li>";
             die;
         }
-
-
-
 
         $this->config['folderTitle']  = str_replace($this->config['folderSep']," -> ",ltrim($this->config['folder'], $this->config['folderSep']));
 
@@ -957,7 +965,7 @@ class QuickWiki {
    // save for now
    // -----------------------------------------------------------------------------
    private function displayFoldersDIV() {
-                
+             
         // no folders exist in cwd
         if (is_null($this->config['folders']) ) return true;
 
@@ -1281,12 +1289,12 @@ class QuickWiki {
     public function generate_webpage_iframe1($aOptions) {
         
         // Check if URL is remote or local
-        $is_remote = filter_var($url, FILTER_VALIDATE_URL) !== false;
+        $is_remote = filter_var($aOptions['url'], FILTER_VALIDATE_URL) !== false;
     
         // Generate HTML for header with link and buttons
         $header_html = '<br><div id="iframe-header">';
         if ($is_remote) {
-            $header_html .= '&nbsp;&nbsp;<a href="' . htmlspecialchars($url) . '" target="_blank">View Original</a>';
+            $header_html .= '&nbsp;&nbsp;<a href="' . htmlspecialchars($aOptions['url']) . '" target="_blank">View Original</a>';
         }
         $header_html .= '&nbsp;<button id="expand-btn">Expand</button>';
         $header_html .= '&nbsp;<button id="collapse-btn">Collapse</button>';
@@ -1424,7 +1432,7 @@ class QuickWiki {
         }
 
         // Close cURL session
-        curl_close($ch);
+        // curl_close($ch);
 
         // Return the response
         return $response;

@@ -36,7 +36,7 @@ class clsEncryption {
         $this->config = $aOptions;
 
         if(!extension_loaded('openssl')) {
-			throw new Exception('clsEncryption requires PHP openssl extension, Get Help.');
+			throw new \Exception('clsEncryption requires PHP openssl extension, Get Help.');
 		}
 
         // Check versions with Heartbleed vulnerabilities
@@ -45,7 +45,7 @@ class clsEncryption {
         }
 
         if (!$this->readINI(null)){
-            throw new Exception('clsEncryption cannot read key file, Get Help.');
+            throw new \Exception('clsEncryption cannot read key file, Get Help.');
         }
 
         // Dynamically generate base64-encoded keys at runtime, as examples...
@@ -65,7 +65,7 @@ class clsEncryption {
 	public function __destruct() {
         if ($this->MyDebug) {
             echo "<h4>clsEncryption()</h4>";
-            $this-dump($this->config);
+            $this->dump($this->config);
         }
 	}
 
@@ -115,7 +115,7 @@ class clsEncryption {
 
     // --------------------------------------------
     // KEY1 is mandatory, KEY2 is optional
-    // KEY2 must be exactly twice the size of KEY1 e.g.:  if key1 is 16 bytes, key2 must be 32 bytes...
+    // KEY2 must be exactly twice the size of KEY1
     // --------------------------------------------
     public function setKeys($xKey1, $xKey2=null) {
         
@@ -181,9 +181,6 @@ class clsEncryption {
         $iv_length           = openssl_cipher_iv_length($method);            
         $iv                  = substr($xEncryptedData,0,$iv_length);       
         
-        //$this->dump($this->config);
-        //exit;
-
         if (!isset($this->config['KEY2'])) {
             $xDataEncrypted = substr($xEncryptedData,$iv_length);
             return openssl_decrypt($xDataEncrypted,$method,$xKEY1,OPENSSL_RAW_DATA,$iv);
@@ -206,16 +203,10 @@ class clsEncryption {
                 echo "second_encrypted: " . $second_encrypted . "<br>";
             }
             
-            $data                 = openssl_decrypt($first_encrypted,$method,$xKEY1,OPENSSL_RAW_DATA,$iv);
-            //echo "data: " . $data . "<br>";
-            
+            $data                 = openssl_decrypt($first_encrypted,$method,$xKEY1,OPENSSL_RAW_DATA,$iv);            
             $second_encrypted_new = hash_hmac('sha3-512', $first_encrypted, $xKEY2, TRUE);
-            //echo "second_encrypted_new: " . $second_encrypted_new . "<br>";
-            //exit;
 
             if (hash_equals($second_encrypted,$second_encrypted_new)) {
-                //echo "hash equals.....<br>";
-                //exit;
                 return $data;
             }
         }     

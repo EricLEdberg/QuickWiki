@@ -1,3 +1,6 @@
 /.env
 Composer/*
 ckeditor_4510/*
+/Uploads/*
+MQTT_Test1.php
+.vscode

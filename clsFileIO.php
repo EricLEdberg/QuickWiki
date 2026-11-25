@@ -1,7 +1,9 @@
 <?php
 
 class clsFileIO {
-	
+	public $config;
+	public $MyDebug;
+
 	public function __construct($aConfig) {
 		$this->MyDebug = false;
 		$this->config  = $aConfig;
@@ -474,32 +476,6 @@ if(0) {
 
         return $this->FILEIO_COPY($aOptions);
     }
-
-	// --------------------------------------------
-	// function below here are not tested and only included as example and for future inclusion in the class
-    // --------------------------------------------
-    // removes files and non-empty directories
-	function rrmdir($dir) {
-	if (is_dir($dir)) {
-		$files = scandir($dir);
-		foreach ($files as $file)
-		if ($file != "." && $file != "..") rrmdir("$dir/$file");
-		rmdir($dir);
-	}
-	else if (file_exists($dir)) unlink($dir);
-	} 
-
-	// copies files and non-empty directories
-	function rcopy($src, $dst) {
-	if (file_exists($dst)) rrmdir($dst);
-	if (is_dir($src)) {
-		mkdir($dst);
-		$files = scandir($src);
-		foreach ($files as $file)
-		if ($file != "." && $file != "..") rcopy("$src/$file", "$dst/$file"); 
-	}
-	else if (file_exists($src)) copy($src, $dst);
-	}
 }
 
 // This class overloads clsFileIO and encrypts/decrypts post and query_string variables when it builds or processes client pages/forms

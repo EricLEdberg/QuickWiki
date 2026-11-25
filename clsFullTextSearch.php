@@ -29,6 +29,7 @@ CREATE TABLE `searchfulltext` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1783 DEFAULT CHARSET=latin1;
 
 */
+//namespace QwikiApplication;
 
 class clsFullTextSearch {
 	
@@ -39,7 +40,7 @@ class clsFullTextSearch {
 	public  $objDB           = NULL;
 	private $objDBLocal      = False;                         // set true when class opens SQL objDB
 	public  $aResults        = array();
-	public  $QueryResults    = "";
+	public  $QueryResults    = null;
 	public  $QueryResultsCnt = 0;                             // count of items returned by query
 
 	public  $server          = "";                            // server / hostname
@@ -340,10 +341,10 @@ class clsFullTextSearch {
 	// Can be used by other classes once the DB has been opened.
 	// ---------------------------------------------------------------------
 	public function ExecuteSQL($xSql) {
-				
+		
 		if ($this->MyDebug) {
 			echo '<h3>ExecuteSQL</h3>';
-			echo "<li>xSQL: " . $xSQL  . "</li>";
+			echo "<li>xSQL: " . $xSql  . "</li>";
 		}
 		
 		// Open connection to DB if it was not provided by calling application
@@ -377,7 +378,7 @@ if ( isset($_SERVER["SCRIPT_NAME"])) {
 
 		If (IsSet($_REQUEST['MODE'])) $xMODE = $_REQUEST['MODE'];
 		
-		$objFTS          = new clsFullTextSearch();
+		$objFTS          = new clsFullTextSearch(null);
 		$objFTS->MyDebug = True;
 		
 		// ------------------------------------------

@@ -6,7 +6,12 @@
 error_reporting(E_ALL & ~E_NOTICE);
 ini_set('display_errors', 'stdout');
 session_start();
-$config = Array();
+
+// require_once __DIR__ . '/Composer/vendor/autoload.php';
+
+$config  = Array();
+$objUser = null;
+$objFTS  = null;
 
 // --------------------------------------------
 // --------------------------------------------
@@ -38,6 +43,7 @@ $config = array_merge($config, (array) $qwConfigJsonDecoded['config']);
 
 // --------------------------------------------
 // --------------------------------------------
+global $objENC;
 $aOptions = array();
 $aOptions['ENVKEYFILE'] = __DIR__ . $config['folderSep'] . ".env";
 require_once('./clsEncryption.php');
@@ -84,7 +90,7 @@ $config = array_merge($config, unserialize($objENC->decryptData($_SESSION["QWI"]
 // class - Full Text Search
 // Default DB connection parameters may be altered dependent on QW choice
 // --------------------------------------------
-
+global $objFTS;
 if ($config['FEATURE']['SEARCH'] ) {
     require("./clsFullTextSearch.php");
     $objFTS = new clsFullTextSearch($config['FTSDB']);
@@ -158,7 +164,7 @@ if (isset($config['Options']['FileIO_Key'])) {
 // --------------------------------------------
 // Finally, instanciate QW application
 // --------------------------------------------
-$objQW         = new QuickWiki($config);
+$objQW = new QuickWiki($config);
 
 $objQW->objENC = $objENC;
 if ($config['FEATURE']['SEARCH'] ) {
@@ -172,6 +178,7 @@ $objQW->showHtmlHeader();
 
 // --------------------------------------------
 // --------------------------------------------
+
 if ($config['FEATURE']['AUTH'] ) {
     $objUser = new QWProfile($objQW->config);
     $objQW->objUser = $objUser;

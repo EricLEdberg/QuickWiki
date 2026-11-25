@@ -34,9 +34,11 @@ table {
 	/* border-collapse: collapse; */
 	border-spacing: 0;   /* not IE */
 }
+/*
 td {
-	/* vertical-align: top; */
+	vertical-align: top;
 }
+
 
 /* --------------- used by clsHeader.asp & other headers--------------------- */
 img.CorpLogoImg {
@@ -91,7 +93,6 @@ table.AppTblHeader {
 	/* height: 90px; */
 	padding: 0px;
 	margin: 0px;
-	spacing: 0px;
 	border-collapse: collapse;
 }
 td.CorpLogoImg {

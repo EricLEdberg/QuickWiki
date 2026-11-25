@@ -17,7 +17,9 @@ class QWProfile extends clsProfile {
 // --------------------------------------------
 // --------------------------------------------
 class clsProfile {
-	
+	public $config;
+	public $MyDebug;
+		
 	public function __construct($aConfig) {
 		$this->MyDebug = false;
 		$this->config  = $aConfig;
@@ -189,7 +191,6 @@ class clsProfile {
 			echo "<li>Qwiki never has access to your password.  It is stored as a hashed value on the authentication server.  It cannot be decrypted by Qwiki at any time.</li>";
             echo "<li>After a user successfully logs in on the authentication server it returns encrypted user information to Qwiki.</li>";
             echo "<li>Qwiki maintains additional information such as the <b>Security Roles</b> they have been granted</li>";
-            
 		echo "</ul>";
 	}
     
