@@ -190,10 +190,15 @@ class clsSQLite
         );
     }
 
+    /**
+     * Return results as HTML for direct display in a browser.
+     * All values are escaped to prevent database content from being interpreted as markup.
+     */
     public function DumpResults(?array $rows = null): string
     {
         $rows ??= $this->aResults;
-        return print_r($rows, true);
+        $dump = htmlspecialchars(print_r($rows, true), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        return '<pre class="sqlite-results">' . $dump . '</pre>';
     }
 
     public function RegisterFunction(string $name, callable $callback, int $argc = -1): bool
