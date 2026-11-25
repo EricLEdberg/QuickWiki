@@ -56,7 +56,9 @@ try {
     echo "Query dump:" . PHP_EOL . $db->DumpResults($rows) . PHP_EOL;
     echo "Database test completed." . PHP_EOL;
 } catch (Throwable $e) {
-    fwrite(STDERR, "TEST ERROR: " . $e->getMessage() . PHP_EOL);
+    // STDERR is defined for CLI PHP but not reliably available under IIS/FastCGI.
+    error_log("clsSQLiteTest ERROR: " . $e->getMessage());
+    echo "TEST ERROR: " . htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . PHP_EOL;
     $exitCode = 1;
 } finally {
     $db->CloseDB();
