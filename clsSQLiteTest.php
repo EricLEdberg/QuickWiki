@@ -2,7 +2,7 @@
 /**
  * Standalone smoke/regression test for clsSQLite.
  * Run: php clsSQLiteTest.php
- * Creates a temporary database beside this file, prints results, then removes it.
+ * Creates a temporary database in the system temp directory and removes it afterward.
  */
 require_once __DIR__ . '/clsSQLite.php';
 
@@ -19,6 +19,7 @@ $db = new clsSQLite([
     'BUSY_TIMEOUT_MS' => 3000,
     'JOURNAL_MODE' => 'WAL',
 ]);
+$exitCode = 0;
 try {
     testAssert($db->InitDB(), 'open/create temporary SQLite database');
     testAssert($db->ExecuteSQL('CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE)'), 'create authors table');
@@ -56,11 +57,11 @@ try {
     echo "Database test completed." . PHP_EOL;
 } catch (Throwable $e) {
     fwrite(STDERR, "TEST ERROR: " . $e->getMessage() . PHP_EOL);
-    exitCode:
-    exit(1);
+    $exitCode = 1;
 } finally {
     $db->CloseDB();
     foreach ([$dbFile, $dbFile . '-wal', $dbFile . '-shm', $dbFile . '-journal'] as $file) {
         if (is_file($file)) @unlink($file);
     }
 }
+exit($exitCode);
